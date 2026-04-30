@@ -1,14 +1,16 @@
 import { loadFromFile } from './storage/storage.js';
 import { setDateDisplay, todayKey } from './utils/date.js';
 import { initTodo, renderTodo } from './features/todo.js';
+import { initPriority, renderPriority } from './features/priority.js';
 import { initDaily, renderDaily } from './features/daily.js';
-import { initGoals, renderGoals } from './features/goals.js';
+import { initGoals, renderGoals } from './features/goals.js?v=goals-components';
 import { initStudy, renderStudyLog } from './features/study.js';
 import { initCalendar, renderCalendar } from './features/calendar.js';
 import { initMotto, renderMotto } from './features/motto.js';
 
 function renderAll() {
   renderTodo();
+  renderPriority();
   renderDaily();
 }
 
@@ -40,6 +42,7 @@ function watchDateChange() {
 loadFromFile().finally(() => {
   initTabs();
   initTodo(renderAll);
+  initPriority(renderAll);
   initDaily(renderAll);
   initGoals();
   initStudy();
@@ -53,4 +56,3 @@ loadFromFile().finally(() => {
   renderGoals();
   renderStudyLog();
 });
-

@@ -5,15 +5,20 @@
 접속: http://localhost:3000
 """
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-import json, os
+import json, os, sys
 
 DATA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data.json')
 
 class Handler(SimpleHTTPRequestHandler):
+    def end_headers(self):
+        if self.path.endswith(('.html', '.js', '.css')) or any(ext + '?' in self.path for ext in ('.html', '.js', '.css')):
+            self.send_header('Cache-Control', 'no-store')
+        super().end_headers()
 
     def log_message(self, format, *args):
         # 불필요한 요청 로그 억제 (저장/불러오기만 출력)
-        if '/api/' in (args[0] if args else ''):
+        message = str(args[0]) if args else ''
+        if '/api/' in message:
             print(f'  [{args[1]}] {args[0].split()[1]}')
 
     def do_OPTIONS(self):
@@ -66,7 +71,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    PORT = 3000
+    PORT = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get('PORT', 3000))
     httpd = HTTPServer(('', PORT), Handler)
     print('─' * 40)
     print(f'  매일 할 것들 서버 시작!')

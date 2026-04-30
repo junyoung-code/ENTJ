@@ -3,6 +3,12 @@ import { getDailyTasks, getTodayRecord, saveTodayRecord } from '../storage/stora
 
 let renderAll = () => {};
 
+function normalizePriorities(rec) {
+  rec.todos.forEach((todo, idx) => {
+    todo.priority = idx + 1;
+  });
+}
+
 function makeTodoItem(text, isDone, onToggle, onDelete) {
   const li = document.createElement('li');
   li.className = 'task-item' + (isDone ? ' done' : '');
@@ -86,7 +92,7 @@ function confirmTodo() {
   if (!val) return;
   input.value = '';
   const rec = getTodayRecord();
-  rec.todos.push({ text: val, done: false });
+  rec.todos.push({ text: val, done: false, priority: rec.todos.length + 1 });
   saveTodayRecord(rec);
   closeModal('todoModal');
   renderAll();
@@ -113,6 +119,7 @@ export function renderTodo() {
         },
         () => {
           rec.todos.splice(idx, 1);
+          normalizePriorities(rec);
           saveTodayRecord(rec);
           renderAll();
         }
@@ -144,4 +151,3 @@ export function initTodo(onRenderAll) {
     }
   });
 }
-

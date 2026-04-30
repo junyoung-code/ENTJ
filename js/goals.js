@@ -1,54 +1,75 @@
 // ── 목표 렌더링 ───────────────────────────────────────
 
+function isGoalAchieved(goal) {
+  return goal.achieved === true || String(goal.achieved).toLowerCase() === 'true';
+}
+
+function appendGoalItem(list, goals, goal, idx) {
+  const li = document.createElement('li');
+  li.className = 'goal-item' + (isGoalAchieved(goal) ? ' achieved' : '');
+
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.checked = isGoalAchieved(goal);
+  cb.addEventListener('change', () => {
+    goals[idx].achieved = cb.checked;
+    goals[idx].achievedAt = cb.checked ? new Date().toLocaleDateString('ko-KR') : null;
+    saveGoals(goals);
+    renderGoals();
+  });
+
+  const body = document.createElement('div');
+  body.className = 'goal-body';
+
+  const text = document.createElement('div');
+  text.className = 'goal-text';
+  text.textContent = goal.text;
+
+  const meta = document.createElement('div');
+  meta.className = 'goal-meta';
+  meta.textContent = isGoalAchieved(goal) && goal.achievedAt
+    ? `달성 ${goal.achievedAt}`
+    : `추가 ${goal.createdAt}`;
+
+  body.append(text, meta);
+
+  const del = document.createElement('button');
+  del.className = 'delete-btn';
+  del.textContent = '×';
+  del.addEventListener('click', () => {
+    goals.splice(idx, 1);
+    saveGoals(goals);
+    renderGoals();
+  });
+
+  li.append(cb, body, del);
+  list.appendChild(li);
+}
+
 function renderGoals() {
   const goals = getGoals();
-  const list  = document.getElementById('goalList');
-  const empty = document.getElementById('goalEmpty');
-  list.innerHTML = '';
+  const activeList = document.getElementById('goalList');
+  const achievedList = document.getElementById('achievedGoalList');
+  const activeEmpty = document.getElementById('goalEmpty');
+  const achievedEmpty = document.getElementById('achievedGoalEmpty');
+  activeList.innerHTML = '';
+  achievedList.innerHTML = '';
 
-  if (goals.length === 0) { empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
-
+  const activeGoals = [];
+  const achievedGoals = [];
   goals.forEach((goal, idx) => {
-    const li = document.createElement('li');
-    li.className = 'goal-item' + (goal.achieved ? ' achieved' : '');
+    if (isGoalAchieved(goal)) achievedGoals.push({ goal, idx });
+    else activeGoals.push({ goal, idx });
+  });
 
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = !!goal.achieved;
-    cb.addEventListener('change', () => {
-      goals[idx].achieved  = cb.checked;
-      goals[idx].achievedAt = cb.checked ? new Date().toLocaleDateString('ko-KR') : null;
-      saveGoals(goals);
-      renderGoals();
-    });
+  activeEmpty.style.display = activeGoals.length === 0 ? 'block' : 'none';
+  achievedEmpty.style.display = achievedGoals.length === 0 ? 'block' : 'none';
 
-    const body = document.createElement('div');
-    body.className = 'goal-body';
-
-    const text = document.createElement('div');
-    text.className = 'goal-text';
-    text.textContent = goal.text;
-
-    const meta = document.createElement('div');
-    meta.className = 'goal-meta';
-    meta.textContent = goal.achieved && goal.achievedAt
-      ? `달성 ${goal.achievedAt}`
-      : `추가 ${goal.createdAt}`;
-
-    body.append(text, meta);
-
-    const del = document.createElement('button');
-    del.className = 'delete-btn';
-    del.textContent = '×';
-    del.addEventListener('click', () => {
-      goals.splice(idx, 1);
-      saveGoals(goals);
-      renderGoals();
-    });
-
-    li.append(cb, body, del);
-    list.appendChild(li);
+  activeGoals.forEach(({ goal, idx }) => {
+    appendGoalItem(activeList, goals, goal, idx);
+  });
+  achievedGoals.forEach(({ goal, idx }) => {
+    appendGoalItem(achievedList, goals, goal, idx);
   });
 }
 
@@ -67,6 +88,7 @@ document.getElementById('addGoalBtn').addEventListener('click', () => {
   document.getElementById('goalInput').value = '';
   openModal('goalModal', 'goalInput');
 });
+
 document.getElementById('goalCancelBtn').addEventListener('click', () => closeModal('goalModal'));
 document.getElementById('goalModal').addEventListener('click', e => {
   if (e.target === document.getElementById('goalModal')) closeModal('goalModal');

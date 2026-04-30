@@ -18,6 +18,7 @@
   </div>
   <nav class="tabs">
     <button class="tab-btn active" data-tab="todo">To Do</button>
+    <button class="tab-btn" data-tab="priority">Priority</button>
     <button class="tab-btn" data-tab="daily">매일 할 목록</button>
     <button class="tab-btn" data-tab="goals">목표</button>
     <button class="tab-btn" data-tab="records">기록</button>
@@ -47,6 +48,18 @@
         <div class="section-divider">매일 반복</div>
         <ul class="task-list" id="dailyInTodoList"></ul>
       </div>
+    </div>
+  </div>
+
+  <!-- ── Priority 탭 ── -->
+  <div id="tab-priority" class="tab-panel">
+    <div class="card">
+      <div class="card-header" style="margin-bottom:8px">
+        <span class="card-title">오늘의 우선순위</span>
+        <button class="add-btn" id="addPriorityTodoBtn" title="할 일 추가">+</button>
+      </div>
+      <ul class="task-list priority-list" id="priorityList"></ul>
+      <p class="empty-state" id="priorityEmpty">To Do에 오늘의 할 일을 추가하면 우선순위를 정할 수 있어요</p>
     </div>
   </div>
 
@@ -80,6 +93,13 @@
       <p style="font-size:13px;color:#aaa;margin-bottom:12px;">이루고 싶은 목표를 적어보세요</p>
       <ul class="task-list" id="goalList"></ul>
       <p class="empty-state" id="goalEmpty">+ 버튼으로 목표를 추가하세요</p>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">완수한 목표</span>
+      </div>
+      <ul class="task-list" id="achievedGoalList"></ul>
+      <p class="empty-state" id="achievedGoalEmpty">아직 완수한 목표가 없어요</p>
     </div>
   </div>
 
@@ -173,7 +193,7 @@
   </div>
 </div>
 
-<script type="module" src="/src/main.js"></script>
+<script type="module" src="/src/main.js?v=goals-components"></script>
 
 </body>
 </html>
