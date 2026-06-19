@@ -1,6 +1,6 @@
 import { todayKey } from '../utils/date.js';
 
-const FILE_KEYS = ['dailyTasks', 'records', 'goals', 'motto', 'studySessions'];
+const FILE_KEYS = ['dailyTasks', 'records', 'goals', 'ideas', 'motto', 'studySessions'];
 
 function load(key, def) {
   try {
@@ -62,6 +62,9 @@ export function saveRecords(v) { save('records', v); }
 
 export function getGoals() { return load('goals', []); }
 export function saveGoals(v) { save('goals', v); }
+
+export function getIdeas() { return load('ideas', []); }
+export function saveIdeas(v) { save('ideas', v); }
 
 export function getMotto() { return load('motto', ''); }
 export function saveMotto(v) { save('motto', v); }

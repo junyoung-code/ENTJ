@@ -15,7 +15,7 @@ function formatDateLabel(key) {
 // ── 로컬 서버 여부 감지 ────────────────────────────────
 const IS_LOCAL_SERVER = location.protocol === 'http:';
 
-const FILE_KEYS = ['dailyTasks', 'records', 'goals', 'motto', 'studySessions'];
+const FILE_KEYS = ['dailyTasks', 'records', 'goals', 'ideas', 'motto', 'studySessions'];
 
 // 모든 데이터를 data.json에 저장 (서버 실행 중일 때만)
 function syncToFile() {
@@ -64,6 +64,9 @@ function saveRecords(v)       { save('records', v); }
 
 function getGoals()           { return load('goals', []); }
 function saveGoals(v)         { save('goals', v); }
+
+function getIdeas()           { return load('ideas', []); }
+function saveIdeas(v)         { save('ideas', v); }
 
 function getMotto()           { return load('motto', ''); }
 function saveMotto(v)         { save('motto', v); }

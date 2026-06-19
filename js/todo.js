@@ -1,6 +1,33 @@
 // ── To Do 렌더링 ──────────────────────────────────────
 
-function makeTodoItem(text, isDone, onToggle, onDelete) {
+function startTextEdit(span, initialText, onSave) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'task-edit-input';
+  input.value = initialText;
+  input.maxLength = 80;
+
+  let finished = false;
+  const finish = (save) => {
+    if (finished) return;
+    finished = true;
+    const nextText = input.value.trim();
+    if (save && nextText) onSave(nextText);
+    else input.replaceWith(span);
+  };
+
+  input.addEventListener('blur', () => finish(true));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') finish(true);
+    if (e.key === 'Escape') finish(false);
+  });
+
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+}
+
+function makeTodoItem(text, isDone, onToggle, onEdit, onDelete) {
   const li = document.createElement('li');
   li.className = 'task-item' + (isDone ? ' done' : '');
 
@@ -12,6 +39,8 @@ function makeTodoItem(text, isDone, onToggle, onDelete) {
   const span = document.createElement('span');
   span.className = 'task-text';
   span.textContent = text;
+  span.title = '클릭해서 수정';
+  span.addEventListener('click', () => startTextEdit(span, text, onEdit));
 
   const del = document.createElement('button');
   del.className = 'delete-btn';
@@ -85,6 +114,7 @@ function renderTodo() {
       const li = makeTodoItem(
         todo.text, todo.done,
         () => { rec.todos[idx].done = !rec.todos[idx].done; saveTodayRecord(rec); renderAll(); },
+        nextText => { rec.todos[idx].text = nextText; saveTodayRecord(rec); renderAll(); },
         () => { rec.todos.splice(idx, 1); saveTodayRecord(rec); renderAll(); }
       );
       list.appendChild(li);

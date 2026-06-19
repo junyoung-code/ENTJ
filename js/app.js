@@ -59,5 +59,6 @@ loadFromFile().finally(() => {
   renderMotto();
   renderAll();
   renderGoals();
+  renderIdeas();
   renderStudyLog();
 });

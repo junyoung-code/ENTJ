@@ -20,6 +20,7 @@
     <button class="tab-btn active" data-tab="todo">To Do</button>
     <button class="tab-btn" data-tab="daily">매일 할 목록</button>
     <button class="tab-btn" data-tab="goals">목표</button>
+    <button class="tab-btn" data-tab="ideas">아이디어</button>
     <button class="tab-btn" data-tab="records">기록</button>
     <button class="tab-btn" data-tab="study">공부 기록</button>
   </nav>
@@ -87,6 +88,26 @@
       </div>
       <ul class="task-list" id="achievedGoalList"></ul>
       <p class="empty-state" id="achievedGoalEmpty">아직 완수한 목표가 없어요</p>
+    </div>
+  </div>
+
+  <!-- ── 아이디어 탭 ── -->
+  <div id="tab-ideas" class="tab-panel">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">아이디어</span>
+        <button class="add-btn" id="addIdeaBtn" title="아이디어 추가">+</button>
+      </div>
+      <p style="font-size:13px;color:#aaa;margin-bottom:12px;">떠오른 생각을 빠르게 남겨두세요</p>
+      <ul class="task-list" id="ideaList"></ul>
+      <p class="empty-state" id="ideaEmpty">+ 버튼으로 아이디어를 추가하세요</p>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">완수한 아이디어</span>
+      </div>
+      <ul class="task-list" id="achievedIdeaList"></ul>
+      <p class="empty-state" id="achievedIdeaEmpty">아직 완수한 아이디어가 없어요</p>
     </div>
   </div>
 
@@ -175,7 +196,19 @@
     <textarea id="goalInput" placeholder="이루고 싶은 목표를 적어보세요" maxlength="200" rows="3"></textarea>
     <div class="modal-actions">
       <button class="btn-cancel" id="goalCancelBtn">취소</button>
-      <button class="btn-confirm green" id="goalConfirmBtn">추가</button>
+      <button class="btn-confirm" id="goalConfirmBtn">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 모달: 아이디어 추가 ── -->
+<div class="modal-overlay" id="ideaModal">
+  <div class="modal">
+    <h3>아이디어 추가</h3>
+    <textarea id="ideaInput" placeholder="떠오른 아이디어를 적어보세요" maxlength="300" rows="3"></textarea>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="ideaCancelBtn">취소</button>
+      <button class="btn-confirm" id="ideaConfirmBtn">추가</button>
     </div>
   </div>
 </div>
@@ -186,6 +219,7 @@
 <script src="js/todo.js"></script>
 <script src="js/daily.js"></script>
 <script src="js/goals.js?v=goals-components"></script>
+<script src="js/ideas.js"></script>
 <script src="js/calendar.js"></script>
 <script src="js/motto.js"></script>
 <script src="js/app.js"></script>

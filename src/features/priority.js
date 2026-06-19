@@ -1,4 +1,4 @@
-import { openModal } from '../utils/dom.js';
+import { openModal, startTextEdit } from '../utils/dom.js';
 import { getTodayRecord, saveTodayRecord } from '../storage/storage.js';
 
 let renderAll = () => {};
@@ -13,6 +13,17 @@ function normalizePriorities(rec) {
     }
   });
   return changed;
+}
+
+function getSubPriorities(todo) {
+  if (!Array.isArray(todo.subPriorities)) todo.subPriorities = [];
+  return todo.subPriorities;
+}
+
+function syncTodoDoneFromSubPriorities(todo) {
+  const details = getSubPriorities(todo);
+  if (details.length === 0) return;
+  todo.done = details.every((detail) => detail.done);
 }
 
 function moveTodo(from, to) {
@@ -37,6 +48,112 @@ function makeMoveButton(label, title, disabled, onClick) {
   return btn;
 }
 
+function makeDetailAddButton() {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'priority-detail-add-btn';
+  btn.textContent = '+ 세부 우선순위';
+  return btn;
+}
+
+function startSubPriorityAdd(list, todo, onSave) {
+  const details = getSubPriorities(todo);
+  const row = document.createElement('div');
+  row.className = 'priority-detail-edit-row';
+
+  const label = document.createElement('span');
+  label.className = 'priority-detail-number';
+  label.textContent = String(details.length + 1);
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'task-edit-input priority-detail-input';
+  input.maxLength = 100;
+  input.placeholder = '세부 우선순위 입력';
+
+  let finished = false;
+  const finish = (save) => {
+    if (finished) return;
+    finished = true;
+    const text = input.value.trim();
+    if (save && text) {
+      details.push({ text, done: false });
+      onSave();
+    } else {
+      row.remove();
+    }
+  };
+
+  input.addEventListener('blur', () => finish(true));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') finish(true);
+    if (e.key === 'Escape') finish(false);
+  });
+
+  row.append(label, input);
+  list.appendChild(row);
+  input.focus();
+}
+
+function appendSubPriorities(container, todo, onSave) {
+  const details = getSubPriorities(todo);
+  const list = document.createElement('ul');
+  list.className = 'priority-detail-list';
+
+  details.forEach((detail, detailIdx) => {
+    const item = document.createElement('li');
+    item.className = 'priority-detail-item' + (detail.done ? ' done' : '');
+
+    const number = document.createElement('button');
+    number.type = 'button';
+    number.className = 'priority-detail-number';
+    number.textContent = String(detailIdx + 1);
+    number.title = '세부 우선순위 완수';
+    number.addEventListener('click', () => {
+      details[detailIdx].done = !details[detailIdx].done;
+      syncTodoDoneFromSubPriorities(todo);
+      onSave();
+    });
+
+    const text = document.createElement('span');
+    text.className = 'priority-detail-text';
+    text.textContent = detail.text;
+    text.title = '클릭해서 수정';
+    text.addEventListener('click', () => startTextEdit(text, detail.text, (nextText) => {
+      details[detailIdx].text = nextText;
+      onSave();
+    }, 100));
+
+    const del = document.createElement('button');
+    del.className = 'delete-btn priority-detail-delete';
+    del.textContent = '×';
+    del.addEventListener('click', () => {
+      details.splice(detailIdx, 1);
+      onSave();
+    });
+
+    item.append(number, text, del);
+    list.appendChild(item);
+  });
+
+  container.append(list);
+}
+
+function renderPriorityProgress(rec) {
+  const progressWrap = document.getElementById('priorityProgress');
+  const total = rec.todos.length;
+
+  if (total === 0) {
+    progressWrap.style.display = 'none';
+    return;
+  }
+
+  const done = rec.todos.filter((todo) => todo.done).length;
+  progressWrap.style.display = 'block';
+  document.getElementById('priorityProgressText').textContent = `${done} / ${total}`;
+  document.getElementById('priorityProgressFill').style.width = `${Math.round((done / total) * 100)}%`;
+}
+
 export function renderPriority() {
   const rec = getTodayRecord();
   if (normalizePriorities(rec)) saveTodayRecord(rec);
@@ -44,6 +161,7 @@ export function renderPriority() {
   const list = document.getElementById('priorityList');
   const empty = document.getElementById('priorityEmpty');
   list.innerHTML = '';
+  renderPriorityProgress(rec);
 
   if (rec.todos.length === 0) {
     empty.style.display = 'block';
@@ -53,11 +171,25 @@ export function renderPriority() {
   empty.style.display = 'none';
   rec.todos.forEach((todo, idx) => {
     const li = document.createElement('li');
-    li.className = 'task-item priority-item' + (todo.done ? ' done' : '');
+    li.className = 'priority-item' + (todo.done ? ' done' : '');
 
-    const rank = document.createElement('span');
+    const row = document.createElement('div');
+    row.className = 'priority-main-row';
+
+    const rank = document.createElement('button');
+    rank.type = 'button';
     rank.className = 'priority-rank';
     rank.textContent = String(idx + 1);
+    rank.title = todo.done ? '완료 해제' : '완료';
+    rank.addEventListener('click', () => {
+      const nextDone = !rec.todos[idx].done;
+      rec.todos[idx].done = nextDone;
+      getSubPriorities(rec.todos[idx]).forEach((detail) => {
+        detail.done = nextDone;
+      });
+      saveTodayRecord(rec);
+      renderAll();
+    });
 
     const controls = document.createElement('div');
     controls.className = 'priority-controls';
@@ -66,20 +198,33 @@ export function renderPriority() {
       makeMoveButton('↓', '우선순위 내리기', idx === rec.todos.length - 1, () => moveTodo(idx, idx + 1))
     );
 
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = !!todo.done;
-    cb.addEventListener('change', () => {
-      rec.todos[idx].done = cb.checked;
+    const details = document.createElement('div');
+    details.className = 'priority-detail-wrap';
+    appendSubPriorities(details, todo, () => {
       saveTodayRecord(rec);
       renderAll();
     });
 
+    const detailList = details.querySelector('.priority-detail-list');
+    const addDetail = makeDetailAddButton();
+    addDetail.addEventListener('click', () => startSubPriorityAdd(detailList, todo, () => {
+      saveTodayRecord(rec);
+      renderAll();
+    }));
+
     const span = document.createElement('span');
     span.className = 'task-text';
     span.textContent = todo.text;
+    span.title = '클릭해서 수정';
+    span.addEventListener('click', () => startTextEdit(span, todo.text, (nextText) => {
+      rec.todos[idx].text = nextText;
+      saveTodayRecord(rec);
+      renderAll();
+    }));
 
-    li.append(rank, cb, span, controls);
+    row.append(rank, span, addDetail, controls);
+
+    li.append(row, details);
     list.appendChild(li);
   });
 }

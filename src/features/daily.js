@@ -1,4 +1,4 @@
-import { closeModal, openModal } from '../utils/dom.js';
+import { closeModal, openModal, startTextEdit } from '../utils/dom.js';
 import { getDailyTasks, getTodayRecord, saveDailyTasks, saveTodayRecord } from '../storage/storage.js';
 
 let renderAll = () => {};
@@ -55,6 +55,21 @@ export function renderDaily() {
     const span = document.createElement('span');
     span.className = 'task-text';
     span.textContent = task;
+    span.title = '클릭해서 수정';
+    span.addEventListener('click', () => startTextEdit(span, task, (nextText) => {
+      const updated = getDailyTasks();
+      if (updated.includes(nextText) && updated[idx] !== nextText) {
+        alert('이미 있는 항목이에요!');
+        return;
+      }
+      const wasDone = rec.daily[task];
+      delete rec.daily[task];
+      rec.daily[nextText] = wasDone;
+      updated[idx] = nextText;
+      saveDailyTasks(updated);
+      saveTodayRecord(rec);
+      renderAll();
+    }));
 
     const del = document.createElement('button');
     del.className = 'delete-btn';
@@ -92,4 +107,3 @@ export function initDaily(onRenderAll) {
     }
   });
 }
-

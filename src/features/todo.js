@@ -1,4 +1,4 @@
-import { closeModal, openModal } from '../utils/dom.js';
+import { closeModal, openModal, startTextEdit } from '../utils/dom.js';
 import { getDailyTasks, getTodayRecord, saveTodayRecord } from '../storage/storage.js';
 
 let renderAll = () => {};
@@ -9,7 +9,7 @@ function normalizePriorities(rec) {
   });
 }
 
-function makeTodoItem(text, isDone, onToggle, onDelete) {
+function makeTodoItem(text, isDone, onToggle, onEdit, onDelete) {
   const li = document.createElement('li');
   li.className = 'task-item' + (isDone ? ' done' : '');
 
@@ -21,6 +21,8 @@ function makeTodoItem(text, isDone, onToggle, onDelete) {
   const span = document.createElement('span');
   span.className = 'task-text';
   span.textContent = text;
+  span.title = '클릭해서 수정';
+  span.addEventListener('click', () => startTextEdit(span, text, onEdit));
 
   const del = document.createElement('button');
   del.className = 'delete-btn';
@@ -114,6 +116,11 @@ export function renderTodo() {
         todo.done,
         () => {
           rec.todos[idx].done = !rec.todos[idx].done;
+          saveTodayRecord(rec);
+          renderAll();
+        },
+        (nextText) => {
+          rec.todos[idx].text = nextText;
           saveTodayRecord(rec);
           renderAll();
         },

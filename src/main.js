@@ -4,6 +4,7 @@ import { initTodo, renderTodo } from './features/todo.js';
 import { initPriority, renderPriority } from './features/priority.js';
 import { initDaily, renderDaily } from './features/daily.js';
 import { initGoals, renderGoals } from './features/goals.js?v=goals-components';
+import { initIdeas, renderIdeas } from './features/ideas.js';
 import { initStudy, renderStudyLog } from './features/study.js';
 import { initCalendar, renderCalendar } from './features/calendar.js';
 import { initMotto, renderMotto } from './features/motto.js';
@@ -45,6 +46,7 @@ loadFromFile().finally(() => {
   initPriority(renderAll);
   initDaily(renderAll);
   initGoals();
+  initIdeas();
   initStudy();
   initCalendar();
   initMotto();
@@ -54,5 +56,6 @@ loadFromFile().finally(() => {
   renderMotto();
   renderAll();
   renderGoals();
+  renderIdeas();
   renderStudyLog();
 });

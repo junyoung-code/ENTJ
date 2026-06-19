@@ -26,7 +26,7 @@ export function initMotto() {
 
     wrap.replaceChild(input, originalEl);
     input.focus();
-    input.select();
+    input.setSelectionRange(0, 0);
 
     let committed = false;
     function commit() {
@@ -51,4 +51,3 @@ export function initMotto() {
     });
   });
 }
-

@@ -1,4 +1,4 @@
-import { closeModal, openModal } from '../utils/dom.js';
+import { closeModal, openModal, startTextEdit } from '../utils/dom.js';
 import { getGoals, saveGoals } from '../storage/storage.js';
 
 function isGoalAchieved(goal) {
@@ -42,6 +42,12 @@ function appendGoalItem(list, goals, goal, idx) {
   const text = document.createElement('div');
   text.className = 'goal-text';
   text.textContent = goal.text;
+  text.title = '클릭해서 수정';
+  text.addEventListener('click', () => startTextEdit(text, goal.text, (nextText) => {
+    goals[idx].text = nextText;
+    saveGoals(goals);
+    renderGoals();
+  }, 200, { block: true }));
 
   const meta = document.createElement('div');
   meta.className = 'goal-meta';

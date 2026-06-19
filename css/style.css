@@ -100,7 +100,12 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
   width: 20px; height: 20px; accent-color: #4f46e5; cursor: pointer; flex-shrink: 0;
 }
 .task-text { flex: 1; font-size: 15px; line-height: 1.4; transition: color .2s; }
+.task-text:hover { cursor: text; }
 .task-item.done .task-text { text-decoration: line-through; color: #aaa; }
+.task-edit-input {
+  flex: 1; min-width: 0; padding: 6px 8px; border: 1.5px solid #4f46e5; border-radius: 8px;
+  font-size: 15px; font-family: inherit; line-height: 1.4; outline: none; color: #1a1a2e;
+}
 
 .tag-repeat {
   font-size: 11px; font-weight: 600; background: #eef2ff; color: #6366f1;
@@ -139,6 +144,21 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
 .goal-item.achieved .goal-text { text-decoration: line-through; color: #aaa; }
 .goal-meta { font-size: 12px; color: #bbb; margin-top: 3px; }
 .goal-item.achieved .goal-meta { color: #4f46e5; }
+
+/* ── 아이디어 탭 ── */
+.idea-item {
+  display: flex; align-items: flex-start; gap: 12px; padding: 14px 0;
+  border-bottom: 1px solid #f3f4f6; animation: fadeIn .2s ease;
+}
+.idea-item:last-child { border-bottom: none; }
+.idea-item input[type="checkbox"] {
+  width: 20px; height: 20px; accent-color: #4f46e5; cursor: pointer; flex-shrink: 0; margin-top: 2px;
+}
+.idea-body { flex: 1; min-width: 0; }
+.idea-text { font-size: 15px; line-height: 1.5; word-break: break-word; transition: color .2s; }
+.idea-item.achieved .idea-text { text-decoration: line-through; color: #aaa; }
+.idea-meta { font-size: 12px; color: #bbb; margin-top: 3px; }
+.idea-item.achieved .idea-meta { color: #4f46e5; }
 
 /* ── 캘린더 ── */
 .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
@@ -289,5 +309,5 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
 }
 .btn-cancel  { background: #f0f2f5; color: #555; }
 .btn-confirm { background: #4f46e5; color: #fff; }
-.btn-confirm.green { background: #10b981; }
+.btn-confirm.green { background: #4f46e5; }
 .btn-confirm:hover { filter: brightness(.93); }
