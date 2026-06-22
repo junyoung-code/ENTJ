@@ -4,12 +4,14 @@ import {
   flushCloudSync
 } from './storage/storage.js';
 import {
+  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
   signOut
 } from 'firebase/auth';
-import { auth } from './firebase.js';
+import { auth, isLocalDevelopment } from './firebase.js';
 import { setDateDisplay, todayKey } from './utils/date.js';
 import { initTodo, renderTodo } from './features/todo.js';
 import { initPriority, renderPriority } from './features/priority.js';
@@ -92,6 +94,15 @@ function showSignedIn() {
   document.body.className = 'auth-signed-in';
 }
 
+function getAuthErrorMessage(err) {
+  const messages = {
+    'auth/network-request-failed': '네트워크 연결을 확인한 뒤 다시 시도해주세요.',
+    'auth/unauthorized-domain': '현재 접속 주소에서는 로그인할 수 없습니다.',
+    'auth/popup-blocked': '브라우저가 로그인 창을 차단했습니다.'
+  };
+  return messages[err.code] || '로그인하지 못했습니다. 잠시 후 다시 시도해주세요.';
+}
+
 document.getElementById('googleLoginBtn').addEventListener('click', async () => {
   const button = document.getElementById('googleLoginBtn');
   const message = document.getElementById('authMessage');
@@ -99,11 +110,16 @@ document.getElementById('googleLoginBtn').addEventListener('click', async () => 
   message.textContent = '';
 
   try {
-    await signInWithPopup(auth, new GoogleAuthProvider());
+    const provider = new GoogleAuthProvider();
+    if (isLocalDevelopment) {
+      await signInWithPopup(auth, provider);
+    } else {
+      await signInWithRedirect(auth, provider);
+    }
   } catch (err) {
     if (err.code !== 'auth/popup-closed-by-user') {
       console.error('[auth] Google sign-in failed.', err);
-      message.textContent = '로그인하지 못했습니다. 잠시 후 다시 시도해주세요.';
+      message.textContent = getAuthErrorMessage(err);
       message.classList.add('error');
     }
     button.disabled = false;
@@ -115,24 +131,38 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
   await signOut(auth);
 });
 
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    disconnectCloudStorage();
-    showSignedOut();
-    return;
+async function startAuth() {
+  let redirectError = '';
+
+  try {
+    if (!isLocalDevelopment) await getRedirectResult(auth);
+  } catch (err) {
+    console.error('[auth] Google redirect sign-in failed.', err);
+    redirectError = getAuthErrorMessage(err);
   }
 
-  document.body.className = 'auth-loading';
-  document.getElementById('authMessage').classList.remove('error');
-  document.getElementById('authMessage').textContent = '내 데이터를 불러오는 중…';
-  try {
-    await connectCloudStorage(user.uid);
-    initApp();
-    renderAllViews();
-    showSignedIn();
-  } catch (err) {
-    console.error('[auth] User data load failed.', err);
-    await signOut(auth);
-    showSignedOut('데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
-  }
-});
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      disconnectCloudStorage();
+      showSignedOut(redirectError);
+      redirectError = '';
+      return;
+    }
+
+    document.body.className = 'auth-loading';
+    document.getElementById('authMessage').classList.remove('error');
+    document.getElementById('authMessage').textContent = '내 데이터를 불러오는 중…';
+    try {
+      await connectCloudStorage(user.uid);
+      initApp();
+      renderAllViews();
+      showSignedIn();
+    } catch (err) {
+      console.error('[auth] User data load failed.', err);
+      await signOut(auth);
+      showSignedOut('데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  });
+}
+
+startAuth();
