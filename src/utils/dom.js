@@ -7,6 +7,35 @@ export function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
 
+export function initModalForm({
+  modalId,
+  inputId,
+  openButtonId,
+  cancelButtonId,
+  confirmButtonId,
+  onConfirm,
+  allowShiftEnter = false
+}) {
+  const modal = document.getElementById(modalId);
+  const input = document.getElementById(inputId);
+
+  document.getElementById(openButtonId).addEventListener('click', () => {
+    input.value = '';
+    openModal(modalId, inputId);
+  });
+  document.getElementById(cancelButtonId).addEventListener('click', () => closeModal(modalId));
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal(modalId);
+  });
+  document.getElementById(confirmButtonId).addEventListener('click', onConfirm);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (!allowShiftEnter || !e.shiftKey)) {
+      e.preventDefault();
+      onConfirm();
+    }
+  });
+}
+
 export function startTextEdit(el, initialText, onSave, maxLength = 80, options = {}) {
   const input = document.createElement('input');
   input.type = 'text';

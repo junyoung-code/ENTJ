@@ -1,4 +1,4 @@
-import { closeModal, openModal, startTextEdit } from '../utils/dom.js';
+import { closeModal, initModalForm, startTextEdit } from '../utils/dom.js';
 import { getDailyTasks, getTodayRecord, saveDailyTasks, saveTodayRecord } from '../storage/storage.js';
 
 let renderAll = () => {};
@@ -91,19 +91,12 @@ export function renderDaily() {
 export function initDaily(onRenderAll) {
   renderAll = onRenderAll;
 
-  document.getElementById('addDailyBtn').addEventListener('click', () => {
-    document.getElementById('dailyInput').value = '';
-    openModal('dailyModal', 'dailyInput');
-  });
-  document.getElementById('dailyCancelBtn').addEventListener('click', () => closeModal('dailyModal'));
-  document.getElementById('dailyModal').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('dailyModal')) closeModal('dailyModal');
-  });
-  document.getElementById('dailyConfirmBtn').addEventListener('click', confirmDaily);
-  document.getElementById('dailyInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      confirmDaily();
-    }
+  initModalForm({
+    modalId: 'dailyModal',
+    inputId: 'dailyInput',
+    openButtonId: 'addDailyBtn',
+    cancelButtonId: 'dailyCancelBtn',
+    confirmButtonId: 'dailyConfirmBtn',
+    onConfirm: confirmDaily
   });
 }

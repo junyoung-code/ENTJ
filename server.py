@@ -43,9 +43,11 @@ class Handler(SimpleHTTPRequestHandler):
                 self.wfile.write(data.encode('utf-8'))
                 print(f'  [불러오기] data.json → 브라우저')
             else:
-                self.send_response(404)
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
                 self._cors()
                 self.end_headers()
+                self.wfile.write(b'{}')
         else:
             super().do_GET()
 

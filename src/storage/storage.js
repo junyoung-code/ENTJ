@@ -1,6 +1,20 @@
 import { todayKey } from '../utils/date.js';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase.js';
 
-const FILE_KEYS = ['dailyTasks', 'records', 'goals', 'ideas', 'motto', 'studySessions'];
+const DATA_KEYS = ['dailyTasks', 'records', 'goals', 'ideas', 'motto', 'studySessions'];
+const EMPTY_DATA = {
+  dailyTasks: [],
+  records: {},
+  goals: [],
+  ideas: [],
+  motto: '',
+  studySessions: {}
+};
+
+let activeUserId = null;
+let syncTimer = null;
+let syncQueue = Promise.resolve();
 
 function load(key, def) {
   try {
@@ -12,46 +26,69 @@ function load(key, def) {
 
 function save(key, val) {
   localStorage.setItem(key, JSON.stringify(val));
-  syncToFile();
+  scheduleCloudSync();
 }
 
 function getSnapshot() {
   const snapshot = {};
-  FILE_KEYS.forEach((key) => {
+  DATA_KEYS.forEach((key) => {
     const value = localStorage.getItem(key);
-    if (value !== null) snapshot[key] = JSON.parse(value);
+    snapshot[key] = value === null ? EMPTY_DATA[key] : JSON.parse(value);
   });
   return snapshot;
 }
 
 function applySnapshot(snapshot) {
-  FILE_KEYS.forEach((key) => {
-    if (snapshot[key] !== undefined) {
-      localStorage.setItem(key, JSON.stringify(snapshot[key]));
-    }
+  DATA_KEYS.forEach((key) => {
+    const value = snapshot[key] === undefined ? EMPTY_DATA[key] : snapshot[key];
+    localStorage.setItem(key, JSON.stringify(value));
   });
 }
 
-export function syncToFile() {
-  fetch('/api/save', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(getSnapshot())
-  }).catch(() => {});
+function scheduleCloudSync() {
+  if (!activeUserId) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(flushCloudSync, 300);
 }
 
-export async function loadFromFile() {
+export async function connectCloudStorage(userId) {
+  clearTimeout(syncTimer);
+  activeUserId = userId;
+
   try {
-    const res = await fetch('/api/load');
-    if (!res.ok) {
-      console.info('[storage] /api/load unavailable; using browser localStorage only.');
-      return;
+    const userDoc = doc(db, 'users', userId);
+    const result = await getDoc(userDoc);
+
+    if (result.exists()) {
+      applySnapshot(result.data());
+    } else {
+      applySnapshot(EMPTY_DATA);
+      await setDoc(userDoc, getSnapshot());
     }
-    applySnapshot(await res.json());
   } catch (err) {
-    // Vite/static deployments do not have /api/load; localStorage remains the source.
-    console.info('[storage] data.json was not loaded. Run `npm run local` or `python3 server.py` to load local data.json.', err);
+    activeUserId = null;
+    throw err;
   }
+}
+
+export function disconnectCloudStorage() {
+  clearTimeout(syncTimer);
+  activeUserId = null;
+}
+
+export function flushCloudSync() {
+  clearTimeout(syncTimer);
+  if (!activeUserId) return Promise.resolve();
+
+  const userId = activeUserId;
+  const snapshot = getSnapshot();
+  syncQueue = syncQueue
+    .catch(() => {})
+    .then(() => setDoc(doc(db, 'users', userId), snapshot))
+    .catch((err) => {
+      console.error('[storage] Firestore save failed.', err);
+    });
+  return syncQueue;
 }
 
 export function getDailyTasks() { return load('dailyTasks', []); }

@@ -7,6 +7,45 @@ body {
   color: #1a1a2e;
 }
 
+.auth-screen {
+  min-height: 100vh; padding: 24px; display: flex; align-items: center; justify-content: center;
+}
+.auth-card {
+  width: 100%; max-width: 400px; padding: 40px 32px; border-radius: 20px; background: #fff;
+  box-shadow: 0 8px 30px rgba(0,0,0,.09); text-align: center;
+}
+.auth-logo {
+  width: 52px; height: 52px; margin: 0 auto 18px; border-radius: 16px; background: #4f46e5;
+  color: #fff; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 800;
+}
+.auth-card h1 { font-size: 26px; margin-bottom: 10px; }
+.auth-card > p { color: #777; font-size: 14px; line-height: 1.6; }
+.google-login-btn {
+  width: 100%; margin-top: 28px; padding: 13px 18px; border: 1px solid #d9dce1; border-radius: 10px;
+  background: #fff; color: #333; font-size: 15px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+.google-login-btn:hover { background: #f8f9fa; }
+.google-login-btn:disabled { opacity: .55; cursor: wait; }
+.google-icon { color: #4285f4; font-size: 18px; font-weight: 800; }
+.auth-message { min-height: 20px; margin-top: 14px; }
+.auth-message.error { color: #dc2626 !important; }
+
+.auth-loading > header,
+.auth-loading > main,
+.auth-loading > .modal-overlay { display: none; }
+.auth-signed-out > header,
+.auth-signed-out > main,
+.auth-signed-out > .modal-overlay { display: none; }
+.auth-signed-in .auth-screen { display: none; }
+
+.user-menu { justify-self: end; }
+.logout-btn {
+  padding: 4px 8px; border: 0; border-radius: 6px; background: #f0f2f5; color: #777;
+  font-size: 11px; cursor: pointer;
+}
+.logout-btn:hover { background: #e2e5e9; }
+
 /* ── 헤더 ── */
 header {
   background: #fff;
@@ -19,9 +58,9 @@ header {
 }
 
 .header-top {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   margin-bottom: 16px;
 }
 
@@ -29,10 +68,10 @@ header {
 .date-display span { display: block; font-size: 13px; font-weight: 400; color: #888; margin-top: 2px; }
 
 /* ── 좌우명 ── */
-.motto-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; width: 360px; max-width: 60%; }
+.motto-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 360px; max-width: 100%; }
 .motto-label { font-size: 11px; font-weight: 600; color: #bbb; letter-spacing: .3px; }
 .motto-text {
-  font-size: 13px; font-weight: 500; color: #555; text-align: right;
+  font-size: 13px; font-weight: 500; color: #555; text-align: center;
   line-height: 1.4; cursor: pointer; padding: 4px 8px; border-radius: 8px;
   border: 1.5px dashed transparent; transition: border-color .2s, background .2s; word-break: keep-all;
 }
@@ -379,3 +418,8 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
 .btn-confirm { background: #4f46e5; color: #fff; }
 .btn-confirm.green { background: #4f46e5; }
 .btn-confirm:hover { filter: brightness(.93); }
+
+@media (max-width: 640px) {
+  .header-top { grid-template-columns: 1fr auto; gap: 10px; }
+  .motto-wrap { grid-column: 1 / -1; grid-row: 2; width: 100%; max-width: 100%; }
+}

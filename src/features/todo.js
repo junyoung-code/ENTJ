@@ -1,4 +1,4 @@
-import { closeModal, openModal, startTextEdit } from '../utils/dom.js';
+import { closeModal, initModalForm, startTextEdit } from '../utils/dom.js';
 import { getDailyTasks, getTodayRecord, saveTodayRecord } from '../storage/storage.js';
 
 let renderAll = () => {};
@@ -142,19 +142,12 @@ export function renderTodo() {
 export function initTodo(onRenderAll) {
   renderAll = onRenderAll;
 
-  document.getElementById('addTodoBtn').addEventListener('click', () => {
-    document.getElementById('todoInput').value = '';
-    openModal('todoModal', 'todoInput');
-  });
-  document.getElementById('todoCancelBtn').addEventListener('click', () => closeModal('todoModal'));
-  document.getElementById('todoModal').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('todoModal')) closeModal('todoModal');
-  });
-  document.getElementById('todoConfirmBtn').addEventListener('click', confirmTodo);
-  document.getElementById('todoInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      confirmTodo();
-    }
+  initModalForm({
+    modalId: 'todoModal',
+    inputId: 'todoInput',
+    openButtonId: 'addTodoBtn',
+    cancelButtonId: 'todoCancelBtn',
+    confirmButtonId: 'todoConfirmBtn',
+    onConfirm: confirmTodo
   });
 }

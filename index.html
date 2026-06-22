@@ -8,7 +8,20 @@
   <link rel="stylesheet" href="/src/styles/style.css" />
 </head>
 
-<body>
+<body class="auth-loading">
+
+  <section class="auth-screen" id="authScreen">
+    <div class="auth-card">
+      <div class="auth-logo">✓</div>
+      <h1>매일 할 것들</h1>
+      <p>Google 계정으로 로그인하면 내 기록을 어디서든 이어서 볼 수 있어요.</p>
+      <button class="google-login-btn" id="googleLoginBtn" type="button" disabled>
+        <span class="google-icon">G</span>
+        Google로 계속하기
+      </button>
+      <p class="auth-message" id="authMessage">로그인 상태를 확인하는 중…</p>
+    </div>
+  </section>
 
   <header>
     <div class="header-top">
@@ -16,6 +29,9 @@
       <div class="motto-wrap">
         <span class="motto-label">나의 좌우명</span>
         <span class="motto-text placeholder" id="mottoDisplay" title="클릭해서 편집">좌우명을 입력하세요</span>
+      </div>
+      <div class="user-menu">
+        <button class="logout-btn" id="logoutBtn" type="button">로그아웃</button>
       </div>
     </div>
     <nav class="tabs">
@@ -252,7 +268,7 @@
     </div>
   </div>
 
-  <script type="module" src="/src/main.js?v=goals-components"></script>
+  <script type="module" src="/src/main.js"></script>
 
 </body>
 
