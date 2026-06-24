@@ -27,14 +27,6 @@ function saveState({ customTabs, hidden, order }) {
   saveTabPrefs({ hidden, order });
 }
 
-function moveItem(items, from, to) {
-  if (to < 0 || to >= items.length) return items;
-  const next = [...items];
-  const [item] = next.splice(from, 1);
-  next.splice(to, 0, item);
-  return next;
-}
-
 export function initTabSettings(defaultTabs, onTabsChanged) {
   const list = document.getElementById('tabSettingsList');
   const addInput = document.getElementById('newTabInput');
@@ -44,6 +36,10 @@ export function initTabSettings(defaultTabs, onTabsChanged) {
   const defaultById = new Map(defaultTabs.map((tab) => [tab.id, tab]));
   let composingNewTab = false;
   let lastAddedAt = 0;
+  let pressTimer = null;
+  let pressStart = null;
+  let draggingRow = null;
+  let isReordering = false;
 
   function saveAndRefresh(state) {
     saveState(state);
@@ -55,7 +51,57 @@ export function initTabSettings(defaultTabs, onTabsChanged) {
     const customById = new Map(state.customTabs.map((tab) => [tab.id, tab]));
     list.innerHTML = '';
 
-    state.order.forEach((id, idx) => {
+    function clearPressTimer() {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+
+    function startReorder(row) {
+      isReordering = true;
+      draggingRow = row;
+      list.classList.add('reordering');
+      row.classList.add('dragging');
+    }
+
+    function moveDraggedRow(pointerY) {
+      if (!draggingRow) return;
+      const target = [...list.querySelectorAll('.tab-settings-row:not(.dragging)')]
+        .find((row) => pointerY < row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2);
+
+      if (target) {
+        list.insertBefore(draggingRow, target);
+      } else {
+        list.appendChild(draggingRow);
+      }
+    }
+
+    function finishReorder(stateToSave) {
+      clearPressTimer();
+      if (!isReordering) {
+        pressStart = null;
+        return;
+      }
+
+      stateToSave.order = [...list.querySelectorAll('.tab-settings-row')].map((row) => row.dataset.tabId);
+      draggingRow?.classList.remove('dragging');
+      list.classList.remove('reordering');
+      draggingRow = null;
+      isReordering = false;
+      pressStart = null;
+      saveAndRefresh(stateToSave);
+      renderList();
+    }
+
+    function cancelReorder() {
+      clearPressTimer();
+      draggingRow?.classList.remove('dragging');
+      list.classList.remove('reordering');
+      draggingRow = null;
+      isReordering = false;
+      pressStart = null;
+    }
+
+    state.order.forEach((id) => {
       const customTab = customById.get(id);
       const defaultTab = defaultById.get(id);
       const label = customTab?.label || defaultTab?.label;
@@ -64,6 +110,7 @@ export function initTabSettings(defaultTabs, onTabsChanged) {
       const hidden = state.hidden.includes(id);
       const row = document.createElement('div');
       row.className = 'tab-settings-row' + (hidden ? ' hidden' : '');
+      row.dataset.tabId = id;
 
       const name = document.createElement('div');
       name.className = 'tab-settings-name';
@@ -71,28 +118,6 @@ export function initTabSettings(defaultTabs, onTabsChanged) {
 
       const actions = document.createElement('div');
       actions.className = 'tab-settings-actions';
-
-      const up = document.createElement('button');
-      up.type = 'button';
-      up.textContent = '↑';
-      up.title = '앞으로 이동';
-      up.disabled = idx === 0;
-      up.addEventListener('click', () => {
-        state.order = moveItem(state.order, idx, idx - 1);
-        saveAndRefresh(state);
-        renderList();
-      });
-
-      const down = document.createElement('button');
-      down.type = 'button';
-      down.textContent = '↓';
-      down.title = '뒤로 이동';
-      down.disabled = idx === state.order.length - 1;
-      down.addEventListener('click', () => {
-        state.order = moveItem(state.order, idx, idx + 1);
-        saveAndRefresh(state);
-        renderList();
-      });
 
       const remove = document.createElement('button');
       remove.type = 'button';
@@ -111,7 +136,32 @@ export function initTabSettings(defaultTabs, onTabsChanged) {
         renderList();
       });
 
-      actions.append(up, down, remove);
+      row.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0 || e.target.closest('button')) return;
+        pressStart = { x: e.clientX, y: e.clientY };
+        clearPressTimer();
+        pressTimer = setTimeout(() => startReorder(row), 350);
+        row.setPointerCapture?.(e.pointerId);
+      });
+
+      row.addEventListener('pointermove', (e) => {
+        if (!pressStart) return;
+        const distance = Math.hypot(e.clientX - pressStart.x, e.clientY - pressStart.y);
+        if (!isReordering && distance > 8) {
+          clearPressTimer();
+          pressStart = null;
+          return;
+        }
+        if (isReordering) {
+          e.preventDefault();
+          moveDraggedRow(e.clientY);
+        }
+      });
+
+      row.addEventListener('pointerup', () => finishReorder(state));
+      row.addEventListener('pointercancel', cancelReorder);
+
+      actions.append(remove);
       row.append(name, actions);
       list.appendChild(row);
     });

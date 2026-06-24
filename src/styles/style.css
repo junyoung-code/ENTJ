@@ -626,7 +626,12 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
 .tab-settings-list { margin-bottom: 14px; max-height: 340px; overflow-y: auto; }
 .tab-settings-row {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 10px 0; border-bottom: 1px solid #f3f4f6;
+  padding: 10px 0; border-bottom: 1px solid #f3f4f6; touch-action: pan-y;
+}
+.tab-settings-list.reordering { user-select: none; cursor: grabbing; }
+.tab-settings-row.dragging {
+  background: #f5f5ff; border-radius: 10px; padding-left: 10px; padding-right: 10px;
+  color: #4f46e5; cursor: grabbing;
 }
 .tab-settings-row.hidden .tab-settings-name { color: #bbb; text-decoration: line-through; }
 .tab-settings-name {
