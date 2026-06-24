@@ -35,6 +35,9 @@ body {
 .auth-form input + input { margin-top: 10px; }
 .auth-form input:focus { border-color: #4f46e5; }
 .auth-actions { display: flex; gap: 10px; margin-top: 12px; }
+.auth-card:not(.signup-mode) .auth-signup-only { display: none; }
+.auth-card.signup-mode #emailLoginBtn,
+.auth-card.signup-mode #emailSignupModeBtn { display: none; }
 .auth-primary-btn,
 .auth-secondary-btn {
   flex: 1;

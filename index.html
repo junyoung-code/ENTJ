@@ -27,9 +27,12 @@
       <div class="auth-form">
         <input type="email" id="authEmailInput" placeholder="이메일" autocomplete="email" />
         <input type="password" id="authPasswordInput" placeholder="비밀번호" autocomplete="current-password" />
+        <input class="auth-signup-only" type="password" id="authPasswordConfirmInput" placeholder="비밀번호 확인" autocomplete="new-password" />
         <div class="auth-actions">
           <button class="auth-primary-btn" id="emailLoginBtn" type="button" disabled>로그인</button>
-          <button class="auth-secondary-btn" id="emailSignupBtn" type="button" disabled>회원가입</button>
+          <button class="auth-primary-btn auth-signup-only" id="emailSignupConfirmBtn" type="button" disabled>회원가입 완료</button>
+          <button class="auth-secondary-btn" id="emailSignupModeBtn" type="button" disabled>회원가입</button>
+          <button class="auth-secondary-btn auth-signup-only" id="emailLoginModeBtn" type="button" disabled>로그인으로</button>
         </div>
       </div>
       <div class="auth-divider"><span>또는</span></div>

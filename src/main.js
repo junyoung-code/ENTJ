@@ -164,9 +164,7 @@ function showSignedOut(message = '') {
   const messageEl = document.getElementById('authMessage');
   messageEl.textContent = message;
   messageEl.classList.toggle('error', Boolean(message));
-  document.getElementById('googleLoginBtn').disabled = false;
-  document.getElementById('emailLoginBtn').disabled = false;
-  document.getElementById('emailSignupBtn').disabled = false;
+  setAuthButtonsDisabled(false);
 }
 
 function showSignedIn() {
@@ -195,22 +193,43 @@ function getAuthErrorMessage(err) {
 function getAuthFormValues() {
   return {
     email: document.getElementById('authEmailInput').value.trim(),
-    password: document.getElementById('authPasswordInput').value
+    password: document.getElementById('authPasswordInput').value,
+    passwordConfirm: document.getElementById('authPasswordConfirmInput').value
   };
 }
 
 function setAuthButtonsDisabled(disabled) {
   document.getElementById('googleLoginBtn').disabled = disabled;
   document.getElementById('emailLoginBtn').disabled = disabled;
-  document.getElementById('emailSignupBtn').disabled = disabled;
+  document.getElementById('emailSignupModeBtn').disabled = disabled;
+  document.getElementById('emailSignupConfirmBtn').disabled = disabled;
+  document.getElementById('emailLoginModeBtn').disabled = disabled;
 }
 
-async function runEmailAuth(action) {
+function setAuthMode(mode) {
+  const authCard = document.querySelector('.auth-card');
   const message = document.getElementById('authMessage');
-  const { email, password } = getAuthFormValues();
+  const isSignup = mode === 'signup';
+
+  authCard.classList.toggle('signup-mode', isSignup);
+  document.getElementById('authPasswordInput').autocomplete = isSignup ? 'new-password' : 'current-password';
+  document.getElementById('authPasswordConfirmInput').value = '';
+  message.textContent = '';
+  message.classList.remove('error');
+}
+
+async function runEmailAuth(action, { requirePasswordConfirm = false } = {}) {
+  const message = document.getElementById('authMessage');
+  const { email, password, passwordConfirm } = getAuthFormValues();
 
   if (!email || !password) {
     message.textContent = '이메일과 비밀번호를 모두 입력해주세요.';
+    message.classList.add('error');
+    return;
+  }
+
+  if (requirePasswordConfirm && password !== passwordConfirm) {
+    message.textContent = '비밀번호 확인이 일치하지 않습니다.';
     message.classList.add('error');
     return;
   }
@@ -256,14 +275,40 @@ document.getElementById('emailLoginBtn').addEventListener('click', async () => {
   await runEmailAuth((email, password) => signInWithEmailAndPassword(auth, email, password));
 });
 
-document.getElementById('emailSignupBtn').addEventListener('click', async () => {
-  await runEmailAuth((email, password) => createUserWithEmailAndPassword(auth, email, password));
+document.getElementById('emailSignupModeBtn').addEventListener('click', () => {
+  setAuthMode('signup');
+  document.getElementById('authPasswordConfirmInput').focus();
+});
+
+document.getElementById('emailLoginModeBtn').addEventListener('click', () => {
+  setAuthMode('login');
+  document.getElementById('authPasswordInput').focus();
+});
+
+document.getElementById('emailSignupConfirmBtn').addEventListener('click', async () => {
+  await runEmailAuth(
+    (email, password) => createUserWithEmailAndPassword(auth, email, password),
+    { requirePasswordConfirm: true }
+  );
 });
 
 document.getElementById('authPasswordInput').addEventListener('keydown', async (e) => {
   if (e.key !== 'Enter') return;
   e.preventDefault();
+  if (document.querySelector('.auth-card').classList.contains('signup-mode')) {
+    document.getElementById('authPasswordConfirmInput').focus();
+    return;
+  }
   await runEmailAuth((email, password) => signInWithEmailAndPassword(auth, email, password));
+});
+
+document.getElementById('authPasswordConfirmInput').addEventListener('keydown', async (e) => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  await runEmailAuth(
+    (email, password) => createUserWithEmailAndPassword(auth, email, password),
+    { requirePasswordConfirm: true }
+  );
 });
 
 document.getElementById('logoutBtn').addEventListener('click', async () => {
