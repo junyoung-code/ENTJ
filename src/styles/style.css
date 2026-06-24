@@ -728,10 +728,13 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
 
   .priority-detail-add-btn {
     grid-area: add;
-    justify-self: end;
+    width: 100%;
+    justify-self: stretch;
     margin-left: 0;
     padding: 6px 9px;
     font-size: 12px;
+    text-align: center;
+    opacity: .75;
   }
 
   .priority-controls {
