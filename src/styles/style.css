@@ -688,4 +688,80 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
 @media (max-width: 640px) {
   .header-top { grid-template-columns: 1fr auto; gap: 10px; }
   .motto-wrap { grid-column: 1 / -1; grid-row: 2; width: 100%; max-width: 100%; }
+
+  .priority-main-row {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "rank text controls"
+      ". add controls";
+    align-items: start;
+    column-gap: 10px;
+    row-gap: 8px;
+  }
+
+  .priority-rank {
+    grid-area: rank;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .priority-main-row > .task-text {
+    grid-area: text;
+    min-width: 0;
+    padding-top: 3px;
+    line-height: 1.45;
+    white-space: normal;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+
+  .priority-detail-add-btn {
+    grid-area: add;
+    justify-self: end;
+    margin-left: 0;
+    padding: 6px 9px;
+    font-size: 12px;
+  }
+
+  .priority-controls {
+    grid-area: controls;
+    gap: 6px;
+  }
+
+  .priority-move-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    font-size: 12px;
+  }
+
+  .priority-detail-wrap {
+    margin: 8px 26px 0 46px;
+    padding-left: 14px;
+  }
+
+  .priority-detail-item,
+  .priority-detail-edit-row {
+    gap: 7px;
+  }
+
+  .priority-detail-number {
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+  }
+
+  .priority-detail-text {
+    font-size: 13px;
+    line-height: 1.45;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+
+  .priority-detail-delete {
+    font-size: 15px;
+    padding: 2px;
+  }
 }
