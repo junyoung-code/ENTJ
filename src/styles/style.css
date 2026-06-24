@@ -764,4 +764,32 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
     font-size: 15px;
     padding: 2px;
   }
+
+  .exercise-detail-wrap {
+    margin: 8px 26px 0 0;
+    padding-left: 14px;
+  }
+
+  .exercise-set-edit-row {
+    display: grid;
+    grid-template-columns: minmax(58px, 1fr) minmax(58px, 1fr) minmax(58px, 1fr) auto auto;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .exercise-set-input {
+    width: 100%;
+    padding: 7px 9px;
+  }
+
+  .exercise-set-save-btn {
+    min-width: 54px;
+    padding: 8px 10px;
+  }
+
+  .exercise-set-edit-row > .exercise-set-delete {
+    justify-self: end;
+    font-size: 18px;
+    padding: 4px 0 4px 4px;
+  }
 }
