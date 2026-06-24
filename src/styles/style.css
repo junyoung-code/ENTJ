@@ -766,15 +766,61 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
   }
 
   .exercise-detail-wrap {
-    margin: 8px 26px 0 0;
-    padding-left: 14px;
+    margin: 8px 0 0 15px;
+    padding-left: 24px;
+  }
+
+  .exercise-main-row {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) 24px;
+    grid-template-areas:
+      "rank name remove"
+      ". add remove";
+    align-items: center;
+    column-gap: 10px;
+    row-gap: 8px;
+  }
+
+  .exercise-rank {
+    grid-area: rank;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .exercise-name {
+    grid-area: name;
+    min-width: 0;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+
+  .exercise-main-row > .exercise-set-add-btn {
+    grid-area: add;
+    width: 100%;
+    margin-left: 0;
+    justify-self: stretch;
+    text-align: center;
+  }
+
+  .exercise-main-row > .delete-btn {
+    grid-area: remove;
+    justify-self: end;
+    align-self: center;
+  }
+
+  .exercise-set-item {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) 20px;
+    align-items: center;
+    gap: 8px;
   }
 
   .exercise-set-edit-row {
     display: grid;
-    grid-template-columns: minmax(58px, 1fr) minmax(58px, 1fr) minmax(58px, 1fr) auto auto;
+    grid-template-columns: minmax(60px, 1fr) minmax(60px, 1fr) minmax(60px, 1fr) 56px 20px;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
   }
 
   .exercise-set-input {
@@ -784,12 +830,13 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
 
   .exercise-set-save-btn {
     min-width: 54px;
-    padding: 8px 10px;
+    padding: 8px 9px;
   }
 
+  .exercise-set-item > .exercise-set-delete,
   .exercise-set-edit-row > .exercise-set-delete {
     justify-self: end;
     font-size: 18px;
-    padding: 4px 0 4px 4px;
+    padding: 4px 0;
   }
 }
