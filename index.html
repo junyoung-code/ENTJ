@@ -23,7 +23,16 @@
     <div class="auth-card">
       <div class="auth-logo">✓</div>
       <h1>ENTJ</h1>
-      <p>Google 계정으로 로그인하면 내 기록을 어디서든 이어서 볼 수 있어요.</p>
+      <p>이메일과 비밀번호로 가입하거나 로그인하면 내 기록을 어디서든 이어서 볼 수 있어요.</p>
+      <div class="auth-form">
+        <input type="email" id="authEmailInput" placeholder="이메일" autocomplete="email" />
+        <input type="password" id="authPasswordInput" placeholder="비밀번호" autocomplete="current-password" />
+        <div class="auth-actions">
+          <button class="auth-primary-btn" id="emailLoginBtn" type="button" disabled>로그인</button>
+          <button class="auth-secondary-btn" id="emailSignupBtn" type="button" disabled>회원가입</button>
+        </div>
+      </div>
+      <div class="auth-divider"><span>또는</span></div>
       <button class="google-login-btn" id="googleLoginBtn" type="button" disabled>
         <span class="google-icon">G</span>
         Google로 계속하기

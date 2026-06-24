@@ -7,9 +7,11 @@ import {
   saveTabPrefs
 } from './storage/storage.js';
 import {
+  createUserWithEmailAndPassword,
   getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
   signOut
@@ -163,6 +165,8 @@ function showSignedOut(message = '') {
   messageEl.textContent = message;
   messageEl.classList.toggle('error', Boolean(message));
   document.getElementById('googleLoginBtn').disabled = false;
+  document.getElementById('emailLoginBtn').disabled = false;
+  document.getElementById('emailSignupBtn').disabled = false;
 }
 
 function showSignedIn() {
@@ -173,6 +177,14 @@ function showSignedIn() {
 
 function getAuthErrorMessage(err) {
   const messages = {
+    'auth/email-already-in-use': '이미 사용 중인 이메일입니다.',
+    'auth/invalid-email': '이메일 형식이 올바르지 않습니다.',
+    'auth/invalid-credential': '이메일 또는 비밀번호를 다시 확인해주세요.',
+    'auth/missing-password': '비밀번호를 입력해주세요.',
+    'auth/too-many-requests': '시도가 너무 많습니다. 잠시 후 다시 시도해주세요.',
+    'auth/user-not-found': '가입되지 않은 이메일입니다.',
+    'auth/weak-password': '비밀번호는 6자 이상이어야 합니다.',
+    'auth/wrong-password': '비밀번호를 다시 확인해주세요.',
     'auth/network-request-failed': '네트워크 연결을 확인한 뒤 다시 시도해주세요.',
     'auth/unauthorized-domain': '현재 접속 주소에서는 로그인할 수 없습니다.',
     'auth/popup-blocked': '브라우저가 로그인 창을 차단했습니다.'
@@ -180,11 +192,48 @@ function getAuthErrorMessage(err) {
   return messages[err.code] || '로그인하지 못했습니다. 잠시 후 다시 시도해주세요.';
 }
 
-document.getElementById('googleLoginBtn').addEventListener('click', async () => {
-  const button = document.getElementById('googleLoginBtn');
+function getAuthFormValues() {
+  return {
+    email: document.getElementById('authEmailInput').value.trim(),
+    password: document.getElementById('authPasswordInput').value
+  };
+}
+
+function setAuthButtonsDisabled(disabled) {
+  document.getElementById('googleLoginBtn').disabled = disabled;
+  document.getElementById('emailLoginBtn').disabled = disabled;
+  document.getElementById('emailSignupBtn').disabled = disabled;
+}
+
+async function runEmailAuth(action) {
   const message = document.getElementById('authMessage');
-  button.disabled = true;
+  const { email, password } = getAuthFormValues();
+
+  if (!email || !password) {
+    message.textContent = '이메일과 비밀번호를 모두 입력해주세요.';
+    message.classList.add('error');
+    return;
+  }
+
+  setAuthButtonsDisabled(true);
   message.textContent = '';
+  message.classList.remove('error');
+
+  try {
+    await action(email, password);
+  } catch (err) {
+    console.error('[auth] Email auth failed.', err);
+    message.textContent = getAuthErrorMessage(err);
+    message.classList.add('error');
+    setAuthButtonsDisabled(false);
+  }
+}
+
+document.getElementById('googleLoginBtn').addEventListener('click', async () => {
+  const message = document.getElementById('authMessage');
+  setAuthButtonsDisabled(true);
+  message.textContent = '';
+  message.classList.remove('error');
 
   try {
     const provider = new GoogleAuthProvider();
@@ -199,8 +248,22 @@ document.getElementById('googleLoginBtn').addEventListener('click', async () => 
       message.textContent = getAuthErrorMessage(err);
       message.classList.add('error');
     }
-    button.disabled = false;
+    setAuthButtonsDisabled(false);
   }
+});
+
+document.getElementById('emailLoginBtn').addEventListener('click', async () => {
+  await runEmailAuth((email, password) => signInWithEmailAndPassword(auth, email, password));
+});
+
+document.getElementById('emailSignupBtn').addEventListener('click', async () => {
+  await runEmailAuth((email, password) => createUserWithEmailAndPassword(auth, email, password));
+});
+
+document.getElementById('authPasswordInput').addEventListener('keydown', async (e) => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  await runEmailAuth((email, password) => signInWithEmailAndPassword(auth, email, password));
 });
 
 document.getElementById('logoutBtn').addEventListener('click', async () => {
