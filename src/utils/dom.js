@@ -1,6 +1,6 @@
 export function openModal(id, inputId) {
   document.getElementById(id).classList.add('open');
-  setTimeout(() => document.getElementById(inputId).focus(), 50);
+  if (inputId) setTimeout(() => document.getElementById(inputId).focus(), 50);
 }
 
 export function closeModal(id) {
@@ -39,22 +39,34 @@ export function initModalForm({
 export function startTextEdit(el, initialText, onSave, maxLength = 80, options = {}) {
   const input = document.createElement('input');
   input.type = 'text';
-  input.className = 'task-edit-input' + (options.block ? ' block-edit-input' : '');
+  input.className = 'task-edit-input';
+  if (options.block) input.classList.add('block-edit-input');
+  if (options.className) input.classList.add(options.className);
   input.value = initialText;
   input.maxLength = maxLength;
 
   let finished = false;
+  let composing = false;
   const finish = (save) => {
-    if (finished) return;
+    if (finished || composing) return;
     finished = true;
     const nextText = input.value.trim();
     if (save && nextText) onSave(nextText);
     else input.replaceWith(el);
   };
 
+  input.addEventListener('compositionstart', () => {
+    composing = true;
+  });
+  input.addEventListener('compositionend', () => {
+    composing = false;
+  });
   input.addEventListener('blur', () => finish(true));
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') finish(true);
+    if (e.key === 'Enter') {
+      if (e.isComposing || composing || e.keyCode === 229) return;
+      finish(true);
+    }
     if (e.key === 'Escape') finish(false);
   });
 

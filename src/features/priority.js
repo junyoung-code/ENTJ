@@ -63,7 +63,7 @@ function startSubPriorityAdd(list, todo, onSave) {
 
   const label = document.createElement('span');
   label.className = 'priority-detail-number';
-  label.textContent = String(details.length + 1);
+  label.textContent = String(list.children.length + 1);
 
   const input = document.createElement('input');
   input.type = 'text';
@@ -72,10 +72,12 @@ function startSubPriorityAdd(list, todo, onSave) {
   input.placeholder = '세부 우선순위 입력';
 
   let finished = false;
+  let composing = false;
   const finish = (save) => {
-    if (finished) return;
-    finished = true;
+    if (finished || composing) return;
     const text = input.value.trim();
+    if (save && !text) return;
+    finished = true;
     if (save && text) {
       details.push({ text, done: false });
       onSave();
@@ -84,9 +86,18 @@ function startSubPriorityAdd(list, todo, onSave) {
     }
   };
 
+  input.addEventListener('compositionstart', () => {
+    composing = true;
+  });
+  input.addEventListener('compositionend', () => {
+    composing = false;
+  });
   input.addEventListener('blur', () => finish(true));
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') finish(true);
+    if (e.key === 'Enter') {
+      if (e.isComposing || composing || e.keyCode === 229) return;
+      finish(true);
+    }
     if (e.key === 'Escape') finish(false);
   });
 

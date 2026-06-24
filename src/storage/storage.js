@@ -2,14 +2,27 @@ import { todayKey } from '../utils/date.js';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
-const DATA_KEYS = ['dailyTasks', 'records', 'goals', 'ideas', 'motto', 'studySessions'];
+const DATA_KEYS = [
+  'dailyTasks',
+  'records',
+  'goals',
+  'ideas',
+  'motto',
+  'studySessions',
+  'tabPrefs',
+  'customTabs',
+  'exerciseRecords'
+];
 const EMPTY_DATA = {
   dailyTasks: [],
   records: {},
   goals: [],
   ideas: [],
   motto: '',
-  studySessions: {}
+  studySessions: {},
+  tabPrefs: null,
+  customTabs: [],
+  exerciseRecords: {}
 };
 
 let activeUserId = null;
@@ -109,6 +122,15 @@ export function saveMotto(v) { save('motto', v); }
 export function getStudySessions() { return load('studySessions', {}); }
 export function saveStudySessions(v) { save('studySessions', v); }
 
+export function getTabPrefs() { return load('tabPrefs', null); }
+export function saveTabPrefs(v) { save('tabPrefs', v); }
+
+export function getCustomTabs() { return load('customTabs', []); }
+export function saveCustomTabs(v) { save('customTabs', v); }
+
+export function getExerciseRecords() { return load('exerciseRecords', {}); }
+export function saveExerciseRecords(v) { save('exerciseRecords', v); }
+
 export function getTodayRecord() {
   const records = getRecords();
   const key = todayKey();
@@ -133,4 +155,17 @@ export function saveTodayStudy(list) {
   const all = getStudySessions();
   all[todayKey()] = list;
   saveStudySessions(all);
+}
+
+export function getTodayExercise() {
+  const all = getExerciseRecords();
+  const key = todayKey();
+  if (!all[key]) all[key] = [];
+  return all[key];
+}
+
+export function saveTodayExercise(list) {
+  const all = getExerciseRecords();
+  all[todayKey()] = list;
+  saveExerciseRecords(all);
 }

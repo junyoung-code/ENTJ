@@ -1,7 +1,10 @@
 import {
   connectCloudStorage,
   disconnectCloudStorage,
-  flushCloudSync
+  flushCloudSync,
+  getCustomTabs,
+  getTabPrefs,
+  saveTabPrefs
 } from './storage/storage.js';
 import {
   getRedirectResult,
@@ -19,35 +22,37 @@ import { initDaily, renderDaily } from './features/daily.js';
 import { initGoals, renderGoals } from './features/goals.js';
 import { initIdeas, renderIdeas } from './features/ideas.js';
 import { initStudy, renderStudyLog } from './features/study.js';
+import { initExercise, renderExercise } from './features/exercise.js';
 import { initCalendar, renderCalendar } from './features/calendar.js';
 import { initMotto, renderMotto } from './features/motto.js';
+import { initTabs, renderTabs } from './components/tabs.js';
+import { buildTabs, DEFAULT_TABS } from './tabs.js';
+import { initTabSettings } from './features/tabSettings.js';
+import { initCustomTabs, renderCustomTabs } from './features/customTabs.js';
+
+let activeTabs = [];
+const initializedTabs = new Set();
+
+function hasTab(id) {
+  return activeTabs.some((tab) => tab.id === id);
+}
 
 function renderAll() {
-  renderTodo();
-  renderPriority();
-  renderDaily();
+  if (hasTab('todo')) renderTodo();
+  if (hasTab('priority')) renderPriority();
+  if (hasTab('daily')) renderDaily();
 }
 
 function renderAllViews() {
   setDateDisplay();
   renderMotto();
   renderAll();
-  renderGoals();
-  renderIdeas();
-  renderStudyLog();
-  renderCalendar();
-}
-
-function initTabs() {
-  document.querySelectorAll('.tab-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-      if (btn.dataset.tab === 'records') renderCalendar();
-    });
-  });
+  if (hasTab('goals')) renderGoals();
+  if (hasTab('ideas')) renderIdeas();
+  if (hasTab('study')) renderStudyLog();
+  if (hasTab('exercise')) renderExercise();
+  if (hasTab('records')) renderCalendar();
+  renderCustomTabs();
 }
 
 function watchDateChange() {
@@ -58,24 +63,96 @@ function watchDateChange() {
       currentDay = newDay;
       setDateDisplay();
       renderAll();
-      renderStudyLog();
+      if (hasTab('study')) renderStudyLog();
+      if (hasTab('exercise')) renderExercise();
     }
   }, 30000);
 }
 
 let appInitialized = false;
 
+function initVisibleTabFeatures() {
+  if (hasTab('todo') && !initializedTabs.has('todo')) {
+    initTodo(renderAll);
+    initializedTabs.add('todo');
+  }
+  if (hasTab('priority') && !initializedTabs.has('priority')) {
+    initPriority(renderAll);
+    initializedTabs.add('priority');
+  }
+  if (hasTab('daily') && !initializedTabs.has('daily')) {
+    initDaily(renderAll);
+    initializedTabs.add('daily');
+  }
+  if (hasTab('goals') && !initializedTabs.has('goals')) {
+    initGoals();
+    initializedTabs.add('goals');
+  }
+  if (hasTab('ideas') && !initializedTabs.has('ideas')) {
+    initIdeas();
+    initializedTabs.add('ideas');
+  }
+  if (hasTab('study') && !initializedTabs.has('study')) {
+    initStudy();
+    initializedTabs.add('study');
+  }
+  if (hasTab('exercise') && !initializedTabs.has('exercise')) {
+    initExercise();
+    initializedTabs.add('exercise');
+  }
+  if (hasTab('records') && !initializedTabs.has('records')) {
+    initCalendar();
+    initializedTabs.add('records');
+  }
+}
+
+function refreshTabs() {
+  const currentTab = document.querySelector('.tab-btn.active')?.dataset.tab;
+  activeTabs = buildTabs();
+  const activeTabId = activeTabs.some((tab) => tab.id === currentTab)
+    ? currentTab
+    : activeTabs[0]?.id;
+  renderTabs(activeTabs, {
+    tabsRootId: 'tabsNav',
+    panelsRootId: 'tabPanels',
+    defaultTabId: activeTabId
+  });
+  initTabs(activeTabs, { onReorder: saveVisibleTabOrder });
+  initVisibleTabFeatures();
+  renderAllViews();
+}
+
+function saveVisibleTabOrder(visibleOrder) {
+  const prefs = getTabPrefs() || {};
+  const customIds = getCustomTabs().map((tab) => tab.id);
+  const defaultIds = DEFAULT_TABS.map((tab) => tab.id);
+  const knownIds = [...defaultIds, ...customIds];
+  const currentOrder = (Array.isArray(prefs.order) ? prefs.order : knownIds)
+    .filter((id) => knownIds.includes(id));
+
+  knownIds.forEach((id) => {
+    if (!currentOrder.includes(id)) currentOrder.push(id);
+  });
+
+  const nextVisibleOrder = visibleOrder.filter((id) => knownIds.includes(id));
+  const nextOrder = [
+    ...nextVisibleOrder,
+    ...currentOrder.filter((id) => !nextVisibleOrder.includes(id))
+  ];
+
+  saveTabPrefs({
+    ...prefs,
+    order: nextOrder
+  });
+  refreshTabs();
+}
+
 function initApp() {
   if (appInitialized) return;
   appInitialized = true;
-  initTabs();
-  initTodo(renderAll);
-  initPriority(renderAll);
-  initDaily(renderAll);
-  initGoals();
-  initIdeas();
-  initStudy();
-  initCalendar();
+  refreshTabs();
+  initTabSettings(DEFAULT_TABS, refreshTabs);
+  initCustomTabs();
   initMotto();
   watchDateChange();
 }

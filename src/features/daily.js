@@ -76,7 +76,6 @@ export function renderDaily() {
     del.title = '목록에서 제거';
     del.textContent = '×';
     del.addEventListener('click', () => {
-      if (!confirm(`"${task}" 항목을 매일 할 목록에서 삭제할까요?`)) return;
       const updated = getDailyTasks();
       updated.splice(idx, 1);
       saveDailyTasks(updated);
