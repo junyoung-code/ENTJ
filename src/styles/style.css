@@ -686,6 +686,15 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
 .btn-confirm:hover { filter: brightness(.93); }
 
 @media (max-width: 640px) {
+  input,
+  textarea,
+  select,
+  .task-edit-input,
+  .motto-input,
+  .custom-memo-input {
+    font-size: 16px;
+  }
+
   .header-top { grid-template-columns: 1fr auto; gap: 10px; }
   .motto-wrap { grid-column: 1 / -1; grid-row: 2; width: 100%; max-width: 100%; }
 
