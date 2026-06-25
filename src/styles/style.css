@@ -467,7 +467,7 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
 
 .exercise-time-trigger-value {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: .01em;
   line-height: 1.4;
   white-space: nowrap;

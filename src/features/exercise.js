@@ -491,8 +491,8 @@ function buildDistanceRecordRow(recordType, entry, onSubmit, onCancel, confirmLa
   const row = document.createElement('div');
   row.className = 'exercise-set-edit-row exercise-distance-row';
 
-  const distanceInput = makeTextInput('', 20);
-  const paceInput = makeTextInput('', 20);
+  const distanceInput = makeTextInput('거리', 20);
+  const paceInput = makeTextInput('페이스', 20);
   distanceInput.value = entry.distanceKm || '';
   paceInput.value = entry.paceKmh || '';
 
