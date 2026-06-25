@@ -112,10 +112,37 @@
   <div class="modal-overlay" id="exerciseModal">
     <div class="modal">
       <h3>운동 추가</h3>
-      <input type="text" id="exerciseNameInput" placeholder="운동 이름" maxlength="50" />
+      <input type="hidden" id="exerciseTypeInput" value="strength" />
+      <div class="exercise-type-selector">
+        <button type="button" class="exercise-type-option active" data-exercise-type-option="strength">헬스</button>
+        <button type="button" class="exercise-type-option" data-exercise-type-option="running">러닝</button>
+        <button type="button" class="exercise-type-option" data-exercise-type-option="cycling">자전거</button>
+        <button type="button" class="exercise-type-option" data-exercise-type-option="custom">기타</button>
+      </div>
+      <input type="text" id="exerciseNameInput" class="exercise-name-input" placeholder="운동 이름" maxlength="50" />
       <div class="modal-actions">
         <button class="btn-cancel" id="exerciseCancelBtn">취소</button>
         <button class="btn-confirm" id="exerciseConfirmBtn">추가</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="exerciseTimeModal">
+    <div class="modal exercise-time-modal">
+      <h3>운동 시간 선택</h3>
+      <div class="exercise-time-wheel-wrap">
+        <div class="exercise-time-wheel-column">
+          <span class="exercise-time-wheel-label">시</span>
+          <div class="exercise-time-wheel" id="exerciseHourWheel"></div>
+        </div>
+        <div class="exercise-time-wheel-column">
+          <span class="exercise-time-wheel-label">분</span>
+          <div class="exercise-time-wheel" id="exerciseMinuteWheel"></div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="exerciseTimeCancelBtn" type="button">취소</button>
+        <button class="btn-confirm" id="exerciseTimeConfirmBtn" type="button">적용</button>
       </div>
     </div>
   </div>

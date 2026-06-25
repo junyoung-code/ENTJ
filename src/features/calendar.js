@@ -101,20 +101,49 @@ function getRate(key) {
   return { done, total, pct: Math.round((done / total) * 100) };
 }
 
-function getExerciseSets(exercise) {
-  if (Array.isArray(exercise.sets)) return exercise.sets;
+function getExerciseRecordsList(exercise) {
+  if (Array.isArray(exercise.records)) return exercise.records;
+  if (Array.isArray(exercise.sets)) {
+    return exercise.sets.map((set) => ({
+      weight: set.weight || '',
+      count: set.count || set.reps || '',
+      reps: set.repeat || '',
+      done: !!set.done
+    }));
+  }
 
-  const reps = exercise.reps || exercise.count || '';
-  return exercise.weight || reps || exercise.repeat
-    ? [{ weight: exercise.weight || '', reps, repeat: exercise.repeat || '', done: exercise.done }]
+  const count = exercise.count || exercise.reps || '';
+  return exercise.weight || count || exercise.repeat
+    ? [{ weight: exercise.weight || '', count, reps: exercise.repeat || '', done: exercise.done }]
     : [];
 }
 
-function getExerciseSetText(set) {
+function formatDuration(duration) {
+  const source = duration && typeof duration === 'object' ? duration : {};
+  const hours = Number.isInteger(source.hours) ? source.hours : 0;
+  const minutes = Number.isInteger(source.minutes) ? source.minutes : 0;
+  const seconds = Number.isInteger(source.seconds) ? source.seconds : 0;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function getExerciseRecordText(exercise, entry) {
+  if (exercise.type === 'running' || exercise.type === 'cycling') {
+    const parts = [];
+    if (entry.distanceKm) parts.push(`거리: ${entry.distanceKm}`);
+    parts.push(`시간: ${formatDuration(entry.duration)}`);
+    if (entry.paceKmh) parts.push(`페이스: ${entry.paceKmh}`);
+    return parts.join(' · ');
+  }
+
+  if (exercise.type === 'custom') {
+    if (entry.mode === 'three_blank') return (entry.values || []).filter(Boolean).join(' · ');
+    return entry.text || '';
+  }
+
   const parts = [];
-  if (set.weight) parts.push(`무게: ${set.weight}`);
-  if (set.reps) parts.push(`횟수: ${set.reps}`);
-  if (set.repeat) parts.push(`반복수: ${set.repeat}`);
+  if (entry.weight) parts.push(`무게: ${entry.weight}`);
+  if (entry.count) parts.push(`횟수: ${entry.count}`);
+  if (entry.reps) parts.push(`반복수: ${entry.reps}`);
   return parts.join(' · ');
 }
 
@@ -198,17 +227,17 @@ function showDayDetail(key) {
       row.innerHTML = `<span class="dot ${exercise.done ? 'done' : 'undone'}"></span><span>${exercise.name}</span>`;
       panel.appendChild(row);
 
-      const sets = getExerciseSets(exercise);
-      if (sets.length === 0) return;
+      const exerciseRecords = getExerciseRecordsList(exercise);
+      if (exerciseRecords.length === 0) return;
 
       const setList = document.createElement('div');
       setList.className = 'record-exercise-set-list';
-      sets.forEach((set, idx) => {
+      exerciseRecords.forEach((entry, idx) => {
         const setRow = document.createElement('div');
-        setRow.className = 'record-exercise-set' + (set.done ? ' done-item' : '');
+        setRow.className = 'record-exercise-set' + (entry.done ? ' done-item' : '');
         setRow.innerHTML = `
           <span class="record-exercise-set-number">${idx + 1}</span>
-          <span>${getExerciseSetText(set)}</span>`;
+          <span>${getExerciseRecordText(exercise, entry)}</span>`;
         setList.appendChild(setRow);
       });
       panel.appendChild(setList);

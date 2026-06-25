@@ -94,7 +94,7 @@ export const DEFAULT_TABS = [
           <span class="card-title">오늘의 운동 기록</span>
           <button class="add-btn" id="addExerciseBtn" title="운동 기록 추가">+</button>
         </div>
-        <p style="font-size:13px;color:#aaa;margin-bottom:12px;">운동을 추가한 뒤 reps를 기록하세요</p>
+        <p style="font-size:13px;color:#aaa;margin-bottom:12px;">운동 타입을 선택하고 기록을 남겨보세요</p>
         <ul class="task-list" id="exerciseList"></ul>
         <p class="empty-state" id="exerciseEmpty">+ 버튼으로 운동 기록을 추가하세요</p>
       </div>
