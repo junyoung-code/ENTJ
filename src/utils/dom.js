@@ -47,9 +47,21 @@ export function startTextEdit(el, initialText, onSave, maxLength = 80, options =
 
   let finished = false;
   let composing = false;
+  let outsideListenerAttached = false;
+  const removeOutsideListener = () => {
+    if (!outsideListenerAttached) return;
+    document.removeEventListener('pointerdown', handlePointerDownOutside, true);
+    outsideListenerAttached = false;
+  };
+  const handlePointerDownOutside = (event) => {
+    if (event.target === input) return;
+    if (input.contains(event.target)) return;
+    finish(true);
+  };
   const finish = (save) => {
     if (finished || composing) return;
     finished = true;
+    removeOutsideListener();
     const nextText = input.value.trim();
     if (save && nextText) onSave(nextText);
     else input.replaceWith(el);
@@ -73,4 +85,9 @@ export function startTextEdit(el, initialText, onSave, maxLength = 80, options =
   el.replaceWith(input);
   input.focus();
   input.select();
+  setTimeout(() => {
+    if (finished) return;
+    outsideListenerAttached = true;
+    document.addEventListener('pointerdown', handlePointerDownOutside, true);
+  }, 0);
 }

@@ -144,6 +144,18 @@ export function saveTodayRecord(rec) {
   saveRecords(records);
 }
 
+export function getRecordByDate(key) {
+  const records = getRecords();
+  if (!records[key]) records[key] = { todos: [], daily: {} };
+  return records[key];
+}
+
+export function saveRecordByDate(key, rec) {
+  const records = getRecords();
+  records[key] = rec;
+  saveRecords(records);
+}
+
 export function getTodayStudy() {
   const all = getStudySessions();
   const key = todayKey();
@@ -157,6 +169,18 @@ export function saveTodayStudy(list) {
   saveStudySessions(all);
 }
 
+export function getStudyByDate(key) {
+  const all = getStudySessions();
+  if (!all[key]) all[key] = [];
+  return all[key];
+}
+
+export function saveStudyByDate(key, list) {
+  const all = getStudySessions();
+  all[key] = list;
+  saveStudySessions(all);
+}
+
 export function getTodayExercise() {
   const all = getExerciseRecords();
   const key = todayKey();
@@ -167,5 +191,17 @@ export function getTodayExercise() {
 export function saveTodayExercise(list) {
   const all = getExerciseRecords();
   all[todayKey()] = list;
+  saveExerciseRecords(all);
+}
+
+export function getExerciseByDate(key) {
+  const all = getExerciseRecords();
+  if (!all[key]) all[key] = [];
+  return all[key];
+}
+
+export function saveExerciseByDate(key, list) {
+  const all = getExerciseRecords();
+  all[key] = list;
   saveExerciseRecords(all);
 }

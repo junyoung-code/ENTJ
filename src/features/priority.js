@@ -209,6 +209,17 @@ export function renderPriority() {
       makeMoveButton('↓', '우선순위 내리기', idx === rec.todos.length - 1, () => moveTodo(idx, idx + 1))
     );
 
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'delete-btn';
+    del.textContent = '×';
+    del.addEventListener('click', () => {
+      rec.todos.splice(idx, 1);
+      normalizePriorities(rec);
+      saveTodayRecord(rec);
+      renderAll();
+    });
+
     const details = document.createElement('div');
     details.className = 'priority-detail-wrap';
     appendSubPriorities(details, todo, () => {
@@ -233,7 +244,7 @@ export function renderPriority() {
       renderAll();
     }));
 
-    row.append(rank, span, addDetail, controls);
+    row.append(rank, span, addDetail, controls, del);
 
     li.append(row, details);
     list.appendChild(li);

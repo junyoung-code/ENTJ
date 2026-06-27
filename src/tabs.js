@@ -267,9 +267,16 @@ function normalizeTabOrder(defaultIds, customTabs, prefs) {
 export function buildTabs() {
   const prefs = getTabPrefs();
   const hidden = Array.isArray(prefs?.hidden) ? prefs.hidden : [];
+  const labels = prefs?.labels && typeof prefs.labels === 'object' ? prefs.labels : {};
   const customTabs = getCustomTabs();
   const defaultIds = DEFAULT_TABS.map((tab) => tab.id);
-  const defaultById = new Map(DEFAULT_TABS.map((tab) => [tab.id, tab]));
+  const defaultById = new Map(DEFAULT_TABS.map((tab) => [
+    tab.id,
+    {
+      ...tab,
+      label: labels[tab.id] || tab.label
+    }
+  ]));
   const customById = new Map(customTabs.map((tab) => [
     tab.id,
     {

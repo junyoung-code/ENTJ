@@ -14,17 +14,75 @@ function getState(defaultTabs) {
   const hidden = Array.isArray(prefs.hidden) ? prefs.hidden.filter((id) => knownIds.includes(id)) : [];
   const order = (Array.isArray(prefs.order) ? prefs.order : defaultIds)
     .filter((id) => knownIds.includes(id));
+  const labels = prefs.labels && typeof prefs.labels === 'object' ? prefs.labels : {};
 
   knownIds.forEach((id) => {
     if (!order.includes(id)) order.push(id);
   });
 
-  return { customTabs, hidden, order };
+  return { customTabs, hidden, order, labels };
 }
 
-function saveState({ customTabs, hidden, order }) {
+function saveState({ customTabs, hidden, order, labels }) {
   saveCustomTabs(customTabs);
-  saveTabPrefs({ hidden, order });
+  saveTabPrefs({ hidden, order, labels });
+}
+
+function createTabNameEditor(label, onSave) {
+  const name = document.createElement('div');
+  name.className = 'tab-settings-name';
+  name.title = '클릭해서 이름 수정';
+
+  const text = document.createElement('span');
+  text.className = 'tab-settings-name-label';
+  text.textContent = label;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'tab-settings-name-input';
+  input.value = label;
+  input.maxLength = 24;
+
+  let editing = false;
+
+  const finish = (save) => {
+    if (!editing) return;
+    editing = false;
+    name.classList.remove('is-editing');
+    if (!save) {
+      input.value = label;
+      return;
+    }
+    const nextText = input.value.trim();
+    if (!nextText || nextText === label) {
+      input.value = label;
+      return;
+    }
+    onSave(nextText);
+  };
+
+  name.addEventListener('pointerdown', (event) => {
+    event.stopPropagation();
+  });
+
+  name.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (editing) return;
+    editing = true;
+    name.classList.add('is-editing');
+    input.value = label;
+    input.focus();
+    input.select();
+  });
+
+  input.addEventListener('blur', () => finish(true));
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') finish(true);
+    if (event.key === 'Escape') finish(false);
+  });
+
+  name.append(text, input);
+  return name;
 }
 
 export function initTabSettings(defaultTabs, onTabsChanged) {
@@ -104,7 +162,7 @@ export function initTabSettings(defaultTabs, onTabsChanged) {
     state.order.forEach((id) => {
       const customTab = customById.get(id);
       const defaultTab = defaultById.get(id);
-      const label = customTab?.label || defaultTab?.label;
+      const label = customTab?.label || state.labels[id] || defaultTab?.label;
       if (!label) return;
 
       const hidden = state.hidden.includes(id);
@@ -112,9 +170,18 @@ export function initTabSettings(defaultTabs, onTabsChanged) {
       row.className = 'tab-settings-row' + (hidden ? ' hidden' : '');
       row.dataset.tabId = id;
 
-      const name = document.createElement('div');
-      name.className = 'tab-settings-name';
-      name.textContent = label;
+      const name = createTabNameEditor(label, (nextText) => {
+        if (customTab) {
+          customTab.label = nextText;
+        } else {
+          state.labels = {
+            ...state.labels,
+            [id]: nextText
+          };
+        }
+        saveAndRefresh(state);
+        renderList();
+      });
 
       const actions = document.createElement('div');
       actions.className = 'tab-settings-actions';
@@ -137,7 +204,7 @@ export function initTabSettings(defaultTabs, onTabsChanged) {
       });
 
       row.addEventListener('pointerdown', (e) => {
-        if (e.button !== 0 || e.target.closest('button')) return;
+        if (e.button !== 0 || e.target.closest('button') || e.target.closest('.tab-settings-name') || e.target.closest('.task-edit-input')) return;
         pressStart = { x: e.clientX, y: e.clientY };
         clearPressTimer();
         pressTimer = setTimeout(() => startReorder(row), 350);

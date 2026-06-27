@@ -25,6 +25,7 @@ import { initGoals, renderGoals } from './features/goals.js';
 import { initIdeas, renderIdeas } from './features/ideas.js';
 import { initStudy, renderStudyLog } from './features/study.js';
 import { initExercise, renderExercise } from './features/exercise.js';
+import { initExerciseTimePicker } from './features/exerciseTimePicker.js';
 import { initCalendar, renderCalendar } from './features/calendar.js';
 import { initMotto, renderMotto } from './features/motto.js';
 import { initTabs, renderTabs } from './components/tabs.js';
@@ -152,6 +153,7 @@ function saveVisibleTabOrder(visibleOrder) {
 function initApp() {
   if (appInitialized) return;
   appInitialized = true;
+  initExerciseTimePicker();
   refreshTabs();
   initTabSettings(DEFAULT_TABS, refreshTabs);
   initCustomTabs();

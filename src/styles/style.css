@@ -228,19 +228,6 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
   flex: 1; min-width: 0; padding: 6px 8px; border: 1.5px solid #4f46e5; border-radius: 8px;
   font-size: 15px; font-family: inherit; line-height: 1.4; outline: none; color: #1a1a2e;
 }
-.compact-edit-input {
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  background: rgba(79,70,229,.06);
-  line-height: inherit;
-  color: #1a1a2e;
-  box-shadow: inset 0 0 0 2px #4f46e5;
-  caret-color: #4f46e5;
-}
-.compact-edit-input:focus {
-  outline: none;
-}
 .block-edit-input { display: block; width: 100%; }
 
 .priority-item {
@@ -953,22 +940,48 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
 }
 .tab-settings-row.hidden .tab-settings-name { color: #bbb; text-decoration: line-through; }
 .tab-settings-name {
-  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;
-  font-size: 14px; font-weight: 700; color: #333; cursor: text;
-}
-.tab-settings-name-input {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  position: relative;
+  min-height: 34px;
   padding: 4px 8px;
-  border: none;
   border-radius: 8px;
-  background: rgba(79,70,229,.06);
   font-size: 14px;
   font-weight: 700;
   line-height: 1.4;
   color: #333;
-  box-shadow: inset 0 0 0 2px #4f46e5;
+  cursor: text;
+}
+.tab-settings-name-label {
+  flex: 1;
+  min-width: 0;
+  display: block;
+}
+.tab-settings-name.is-editing .tab-settings-name-label {
+  visibility: hidden;
+}
+.tab-settings-name-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(79,70,229,.06);
+  font: inherit;
+  line-height: inherit;
+  color: inherit;
   caret-color: #4f46e5;
+  box-shadow: inset 0 0 0 1px #4f46e5;
+  opacity: 0;
+  pointer-events: none;
+}
+.tab-settings-name.is-editing .tab-settings-name-input {
+  opacity: 1;
+  pointer-events: auto;
 }
 .tab-settings-name-input:focus {
   outline: none;
