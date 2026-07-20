@@ -110,14 +110,14 @@ export const DEFAULT_TABS = [
           <button class="add-btn" id="addGoalBtn" title="목표 추가">+</button>
         </div>
         <p style="font-size:13px;color:#aaa;margin-bottom:12px;">이루고 싶은 목표를 적어보세요</p>
-        <ul class="task-list" id="goalList"></ul>
+        <ul class="task-list priority-list" id="goalList"></ul>
         <p class="empty-state" id="goalEmpty">+ 버튼으로 목표를 추가하세요</p>
       </div>
       <div class="card">
         <div class="card-header">
           <span class="card-title">완수한 목표</span>
         </div>
-        <ul class="task-list" id="achievedGoalList"></ul>
+        <ul class="task-list priority-list" id="achievedGoalList"></ul>
         <p class="empty-state" id="achievedGoalEmpty">아직 완수한 목표가 없어요</p>
       </div>
     `
@@ -132,14 +132,14 @@ export const DEFAULT_TABS = [
           <button class="add-btn" id="addIdeaBtn" title="아이디어 추가">+</button>
         </div>
         <p style="font-size:13px;color:#aaa;margin-bottom:12px;">떠오른 생각을 빠르게 남겨두세요</p>
-        <ul class="task-list" id="ideaList"></ul>
+        <ul class="task-list priority-list" id="ideaList"></ul>
         <p class="empty-state" id="ideaEmpty">+ 버튼으로 아이디어를 추가하세요</p>
       </div>
       <div class="card">
         <div class="card-header">
           <span class="card-title">완수한 아이디어</span>
         </div>
-        <ul class="task-list" id="achievedIdeaList"></ul>
+        <ul class="task-list priority-list" id="achievedIdeaList"></ul>
         <p class="empty-state" id="achievedIdeaEmpty">아직 완수한 아이디어가 없어요</p>
       </div>
     `

@@ -7,6 +7,7 @@ const ideas = createCollectionFeature({
   itemClass: 'idea',
   maxLength: 300,
   achievedLabel: '완수',
+  ranked: true,
   createdFallback: '날짜 없음',
   deleteTitle: '아이디어 삭제',
   ids: {

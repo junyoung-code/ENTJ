@@ -4,6 +4,27 @@ function isAchieved(item) {
   return item.achieved === true || String(item.achieved).toLowerCase() === 'true';
 }
 
+export function normalizePriorities(items) {
+  let changed = false;
+  items.forEach((item, index) => {
+    const priority = index + 1;
+    if (item.priority !== priority) {
+      item.priority = priority;
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+export function moveItem(items, from, to) {
+  if (to < 0 || to >= items.length) return false;
+
+  const [item] = items.splice(from, 1);
+  items.splice(to, 0, item);
+  normalizePriorities(items);
+  return true;
+}
+
 export function createCollectionFeature(config) {
   const {
     getItems,
@@ -13,23 +34,130 @@ export function createCollectionFeature(config) {
     maxLength,
     achievedLabel,
     createdFallback = '',
-    deleteTitle = ''
+    deleteTitle = '',
+    ranked = false,
+    subItems = false
   } = config;
 
-  function renderItem(list, items, item, idx) {
+  function getSubItems(item) {
+    if (!Array.isArray(item.subItems)) item.subItems = [];
+    return item.subItems;
+  }
+
+  function syncAchievedFromSubItems(item) {
+    const details = getSubItems(item);
+    if (details.length > 0) item.achieved = details.every((detail) => detail.achieved);
+  }
+
+  function renderSubItems(container, items, item, idx) {
+    const details = getSubItems(item);
+    const list = document.createElement('ul');
+    list.className = 'priority-detail-list';
+
+    details.forEach((detail, detailIdx) => {
+      const row = document.createElement('li');
+      row.className = 'priority-detail-item' + (detail.achieved ? ' done' : '');
+
+      const number = document.createElement('button');
+      number.type = 'button';
+      number.className = 'priority-detail-number';
+      number.textContent = String(detailIdx + 1);
+      number.title = detail.achieved ? '세부 목표 미달성 처리' : '세부 목표 달성';
+      number.addEventListener('click', () => {
+        details[detailIdx].achieved = !details[detailIdx].achieved;
+        syncAchievedFromSubItems(items[idx]);
+        saveItems(items);
+        render();
+      });
+
+      const text = document.createElement('span');
+      text.className = 'priority-detail-text';
+      text.textContent = detail.text;
+      text.title = '클릭해서 수정';
+      text.addEventListener('click', () => startTextEdit(text, detail.text, (nextText) => {
+        details[detailIdx].text = nextText;
+        saveItems(items);
+        render();
+      }, maxLength));
+
+      const del = document.createElement('button');
+      del.className = 'delete-btn priority-detail-delete';
+      del.textContent = '×';
+      del.addEventListener('click', () => {
+        details.splice(detailIdx, 1);
+        syncAchievedFromSubItems(items[idx]);
+        saveItems(items);
+        render();
+      });
+
+      row.append(number, text, del);
+      list.appendChild(row);
+    });
+
+    container.appendChild(list);
+
+    const addButton = document.createElement('button');
+    addButton.type = 'button';
+    addButton.className = 'priority-detail-add-btn';
+    addButton.textContent = '+ 세부 목표';
+    addButton.addEventListener('click', () => {
+      const editRow = document.createElement('div');
+      editRow.className = 'priority-detail-edit-row';
+      const number = document.createElement('span');
+      number.className = 'priority-detail-number';
+      number.textContent = String(details.length + 1);
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'task-edit-input priority-detail-input';
+      input.maxLength = maxLength;
+      input.placeholder = '세부 목표 입력';
+      let finished = false;
+      const finish = (save) => {
+        if (finished) return;
+        const value = input.value.trim();
+        if (save && !value) return;
+        finished = true;
+        if (save) {
+          details.push({ text: value, achieved: false });
+          saveItems(items);
+          render();
+        } else {
+          editRow.remove();
+        }
+      };
+      input.addEventListener('blur', () => finish(true));
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.isComposing) finish(true);
+        if (event.key === 'Escape') finish(false);
+      });
+      editRow.append(number, input);
+      list.appendChild(editRow);
+      input.focus();
+    });
+    container.appendChild(addButton);
+  }
+
+  function renderItem(list, items, item, idx, group) {
     const achieved = isAchieved(item);
     const li = document.createElement('li');
-    li.className = `${itemClass}-item` + (achieved ? ' achieved' : '');
+    li.className = `${itemClass}-item` + (achieved ? ' achieved' : '') + (ranked ? ' priority-item' : '');
+
+    const complete = (nextAchieved) => {
+      items[idx].achieved = nextAchieved;
+      items[idx].achievedAt = nextAchieved ? new Date().toLocaleDateString('ko-KR') : null;
+      if (subItems) {
+        getSubItems(items[idx]).forEach((detail) => {
+          detail.achieved = nextAchieved;
+        });
+      }
+      saveItems(items);
+      render();
+    };
 
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.checked = achieved;
-    checkbox.addEventListener('change', () => {
-      items[idx].achieved = checkbox.checked;
-      items[idx].achievedAt = checkbox.checked ? new Date().toLocaleDateString('ko-KR') : null;
-      saveItems(items);
-      render();
-    });
+    checkbox.addEventListener('change', () => complete(checkbox.checked));
 
     const body = document.createElement('div');
     body.className = `${itemClass}-body`;
@@ -61,12 +189,56 @@ export function createCollectionFeature(config) {
     });
 
     body.append(text, meta);
-    li.append(checkbox, body, del);
+
+    if (!ranked) {
+      li.append(checkbox, body, del);
+      list.appendChild(li);
+      return;
+    }
+
+    const row = document.createElement('div');
+    row.className = 'priority-main-row collection-priority-row';
+    const rank = document.createElement('button');
+    rank.type = 'button';
+    rank.className = 'priority-rank';
+    rank.textContent = String(item.priority);
+    rank.title = achieved ? `${achievedLabel} 취소` : achievedLabel;
+    rank.addEventListener('click', () => complete(!isAchieved(items[idx])));
+
+    const controls = document.createElement('div');
+    controls.className = 'priority-controls';
+    const groupIndex = group.findIndex((entry) => entry.idx === idx);
+    [['↑', '순서 올리기', groupIndex - 1], ['↓', '순서 내리기', groupIndex + 1]].forEach(([label, title, targetIndex]) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'priority-move-btn';
+      button.textContent = label;
+      button.title = title;
+      button.disabled = targetIndex < 0 || targetIndex >= group.length;
+      button.addEventListener('click', () => {
+        const to = group[targetIndex]?.idx;
+        if (moveItem(items, idx, to)) {
+          saveItems(items);
+          render();
+        }
+      });
+      controls.appendChild(button);
+    });
+
+    row.append(rank, body, controls, del);
+    li.appendChild(row);
+    if (subItems) {
+      const details = document.createElement('div');
+      details.className = 'priority-detail-wrap';
+      renderSubItems(details, items, item, idx);
+      li.appendChild(details);
+    }
     list.appendChild(li);
   }
 
   function render() {
     const items = getItems();
+    if (ranked && normalizePriorities(items)) saveItems(items);
     const activeList = document.getElementById(ids.activeList);
     const achievedList = document.getElementById(ids.achievedList);
     activeList.innerHTML = '';
@@ -80,8 +252,8 @@ export function createCollectionFeature(config) {
 
     document.getElementById(ids.activeEmpty).style.display = activeItems.length === 0 ? 'block' : 'none';
     document.getElementById(ids.achievedEmpty).style.display = achievedItems.length === 0 ? 'block' : 'none';
-    activeItems.forEach(({ item, idx }) => renderItem(activeList, items, item, idx));
-    achievedItems.forEach(({ item, idx }) => renderItem(achievedList, items, item, idx));
+    activeItems.forEach(({ item, idx }) => renderItem(activeList, items, item, idx, activeItems));
+    achievedItems.forEach(({ item, idx }) => renderItem(achievedList, items, item, idx, achievedItems));
   }
 
   function confirmItem() {

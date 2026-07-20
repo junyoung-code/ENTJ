@@ -7,6 +7,8 @@ const goals = createCollectionFeature({
   itemClass: 'goal',
   maxLength: 200,
   achievedLabel: '달성',
+  ranked: true,
+  subItems: true,
   ids: {
     activeList: 'goalList',
     achievedList: 'achievedGoalList',
