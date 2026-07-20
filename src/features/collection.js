@@ -49,7 +49,65 @@ export function createCollectionFeature(config) {
     if (details.length > 0) item.achieved = details.every((detail) => detail.achieved);
   }
 
-  function renderSubItems(container, items, item, idx) {
+  function makeDetailAddButton() {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'priority-detail-add-btn';
+    button.textContent = '+ 세부 목표';
+    return button;
+  }
+
+  function startSubItemAdd(list, items, item, idx) {
+    const details = getSubItems(item);
+    const editRow = document.createElement('div');
+    editRow.className = 'priority-detail-edit-row';
+
+    const number = document.createElement('span');
+    number.className = 'priority-detail-number';
+    number.textContent = String(details.length + 1);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'task-edit-input priority-detail-input';
+    input.maxLength = maxLength;
+    input.placeholder = '세부 목표 입력';
+
+    let finished = false;
+    let composing = false;
+    const finish = (save) => {
+      if (finished || composing) return;
+      const value = input.value.trim();
+      finished = true;
+      if (save && value) {
+        details.push({ text: value, achieved: false });
+        saveItems(items);
+        render();
+      } else {
+        editRow.remove();
+      }
+    };
+
+    input.addEventListener('compositionstart', () => {
+      composing = true;
+    });
+    input.addEventListener('compositionend', () => {
+      composing = false;
+    });
+    input.addEventListener('blur', () => finish(true));
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        if (event.isComposing || composing || event.keyCode === 229) return;
+        finish(true);
+      }
+      if (event.key === 'Escape') finish(false);
+    });
+
+    editRow.append(number, input);
+    list.appendChild(editRow);
+    input.focus();
+  }
+
+  function appendSubItems(container, items, item, idx) {
     const details = getSubItems(item);
     const list = document.createElement('ul');
     list.className = 'priority-detail-list';
@@ -95,52 +153,16 @@ export function createCollectionFeature(config) {
     });
 
     container.appendChild(list);
-
-    const addButton = document.createElement('button');
-    addButton.type = 'button';
-    addButton.className = 'priority-detail-add-btn';
-    addButton.textContent = '+ 세부 목표';
-    addButton.addEventListener('click', () => {
-      const editRow = document.createElement('div');
-      editRow.className = 'priority-detail-edit-row';
-      const number = document.createElement('span');
-      number.className = 'priority-detail-number';
-      number.textContent = String(details.length + 1);
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'task-edit-input priority-detail-input';
-      input.maxLength = maxLength;
-      input.placeholder = '세부 목표 입력';
-      let finished = false;
-      const finish = (save) => {
-        if (finished) return;
-        const value = input.value.trim();
-        if (save && !value) return;
-        finished = true;
-        if (save) {
-          details.push({ text: value, achieved: false });
-          saveItems(items);
-          render();
-        } else {
-          editRow.remove();
-        }
-      };
-      input.addEventListener('blur', () => finish(true));
-      input.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' && !event.isComposing) finish(true);
-        if (event.key === 'Escape') finish(false);
-      });
-      editRow.append(number, input);
-      list.appendChild(editRow);
-      input.focus();
-    });
-    container.appendChild(addButton);
+    return list;
   }
 
   function renderItem(list, items, item, idx, group) {
     const achieved = isAchieved(item);
     const li = document.createElement('li');
-    li.className = `${itemClass}-item` + (achieved ? ' achieved' : '') + (ranked ? ' priority-item' : '');
+    li.className = `${itemClass}-item`
+      + (achieved ? ' achieved' : '')
+      + (ranked ? ' priority-item' : '')
+      + (ranked && achieved ? ' done' : '');
 
     const complete = (nextAchieved) => {
       items[idx].achieved = nextAchieved;
@@ -154,31 +176,8 @@ export function createCollectionFeature(config) {
       render();
     };
 
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.checked = achieved;
-    checkbox.addEventListener('change', () => complete(checkbox.checked));
-
-    const body = document.createElement('div');
-    body.className = `${itemClass}-body`;
-
-    const text = document.createElement('div');
-    text.className = `${itemClass}-text`;
-    text.textContent = item.text;
-    text.title = '클릭해서 수정';
-    text.addEventListener('click', () => startTextEdit(text, item.text, (nextText) => {
-      items[idx].text = nextText;
-      saveItems(items);
-      render();
-    }, maxLength, { block: true }));
-
-    const meta = document.createElement('div');
-    meta.className = `${itemClass}-meta`;
-    meta.textContent = achieved && item.achievedAt
-      ? `${achievedLabel} ${item.achievedAt}`
-      : `추가 ${item.createdAt || createdFallback}`;
-
     const del = document.createElement('button');
+    del.type = 'button';
     del.className = 'delete-btn';
     del.textContent = '×';
     if (deleteTitle) del.title = deleteTitle;
@@ -188,16 +187,39 @@ export function createCollectionFeature(config) {
       render();
     });
 
-    body.append(text, meta);
-
     if (!ranked) {
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = achieved;
+      checkbox.addEventListener('change', () => complete(checkbox.checked));
+
+      const body = document.createElement('div');
+      body.className = `${itemClass}-body`;
+
+      const text = document.createElement('div');
+      text.className = `${itemClass}-text`;
+      text.textContent = item.text;
+      text.title = '클릭해서 수정';
+      text.addEventListener('click', () => startTextEdit(text, item.text, (nextText) => {
+        items[idx].text = nextText;
+        saveItems(items);
+        render();
+      }, maxLength, { block: true }));
+
+      const meta = document.createElement('div');
+      meta.className = `${itemClass}-meta`;
+      meta.textContent = achieved && item.achievedAt
+        ? `${achievedLabel} ${item.achievedAt}`
+        : `추가 ${item.createdAt || createdFallback}`;
+
+      body.append(text, meta);
       li.append(checkbox, body, del);
       list.appendChild(li);
       return;
     }
 
     const row = document.createElement('div');
-    row.className = 'priority-main-row collection-priority-row';
+    row.className = 'priority-main-row';
     const rank = document.createElement('button');
     rank.type = 'button';
     rank.className = 'priority-rank';
@@ -225,13 +247,27 @@ export function createCollectionFeature(config) {
       controls.appendChild(button);
     });
 
-    row.append(rank, body, controls, del);
-    li.appendChild(row);
+    const text = document.createElement('span');
+    text.className = 'task-text';
+    text.textContent = item.text;
+    text.title = '클릭해서 수정';
+    text.addEventListener('click', () => startTextEdit(text, item.text, (nextText) => {
+      items[idx].text = nextText;
+      saveItems(items);
+      render();
+    }, maxLength));
+
     if (subItems) {
       const details = document.createElement('div');
       details.className = 'priority-detail-wrap';
-      renderSubItems(details, items, item, idx);
-      li.appendChild(details);
+      const detailList = appendSubItems(details, items, item, idx);
+      const addDetail = makeDetailAddButton();
+      addDetail.addEventListener('click', () => startSubItemAdd(detailList, items, item, idx));
+      row.append(rank, text, addDetail, controls, del);
+      li.append(row, details);
+    } else {
+      row.append(rank, text, controls, del);
+      li.appendChild(row);
     }
     list.appendChild(li);
   }
