@@ -32,6 +32,7 @@ import { initTabs, renderTabs } from './components/tabs.js';
 import { buildTabs, DEFAULT_TABS } from './tabs.js';
 import { initTabSettings } from './features/tabSettings.js';
 import { initCustomTabs, renderCustomTabs } from './features/customTabs.js';
+import { flushPendingJournalDrafts } from './storage/journal.js';
 
 let activeTabs = [];
 const initializedTabs = new Set();
@@ -314,6 +315,11 @@ document.getElementById('authPasswordConfirmInput').addEventListener('keydown', 
 });
 
 document.getElementById('logoutBtn').addEventListener('click', async () => {
+  try {
+    await flushPendingJournalDrafts();
+  } catch (err) {
+    console.error('[journal] Draft flush before logout failed.', err);
+  }
   await flushCloudSync();
   await signOut(auth);
 });

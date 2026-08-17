@@ -899,6 +899,88 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
   outline: none; background: #fafafa;
 }
 .custom-memo-input:focus { border-color: #4f46e5; background: #fff; }
+.custom-component-title { cursor: text; }
+.custom-block-status {
+  min-height: 18px; margin: 8px 0 0; color: #888; font-size: 12px; line-height: 1.5;
+}
+.custom-block-status.error { color: #dc2626; }
+.custom-image-body { display: flex; flex-direction: column; }
+.custom-image-preview {
+  overflow: hidden; width: 100%; border: 1px solid #ececf1; border-radius: 12px;
+  background: #f8f9fc;
+}
+.custom-image-preview img {
+  display: block; width: 100%; max-height: 520px; object-fit: contain; margin: 0 auto;
+}
+.custom-image-empty {
+  display: flex; min-height: 150px; flex-direction: column; align-items: center;
+  justify-content: center; gap: 10px; border: 1.5px dashed #d8d9e2; border-radius: 12px;
+  background: #fafafa;
+}
+.custom-image-empty p { color: #aaa; font-size: 12px; }
+.custom-image-upload-btn {
+  align-self: center; border: none; border-radius: 10px; padding: 10px 16px;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.custom-image-upload-btn:disabled { cursor: wait; opacity: .65; }
+.custom-image-caption {
+  width: 100%; min-height: 72px; margin-top: 12px; padding: 11px 13px;
+  border: 1.5px solid #e0e0e0; border-radius: 10px; background: #fafafa;
+  color: #333; font: inherit; font-size: 14px; line-height: 1.5; outline: none; resize: vertical;
+}
+.custom-image-caption:focus { border-color: #4f46e5; background: #fff; }
+.custom-image-controls { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.custom-image-controls button {
+  border: none; border-radius: 9px; padding: 9px 12px; font-size: 12px;
+  font-weight: 700; cursor: pointer;
+}
+.custom-image-file-input { display: none; }
+.journal-date-row { display: grid; grid-template-columns: 38px 1fr 38px; gap: 8px; align-items: center; }
+.journal-date-nav {
+  height: 38px; border: none; border-radius: 10px; background: #f0f2f5;
+  color: #555; font-size: 22px; line-height: 1; cursor: pointer;
+}
+.journal-date-nav:disabled { color: #c9c9d3; cursor: default; }
+.journal-date-input {
+  width: 100%; height: 38px; padding: 0 12px; border: 1.5px solid #e0e0e0;
+  border-radius: 10px; background: #fff; color: #333; font: inherit; font-size: 14px; outline: none;
+}
+.journal-date-input:focus { border-color: #4f46e5; }
+.journal-status-row {
+  display: flex; align-items: center; gap: 8px; min-height: 30px; margin-top: 6px;
+}
+.journal-date-label { flex: 1; min-width: 0; color: #777; font-size: 12px; }
+.journal-save-status { min-height: auto; margin: 0; text-align: right; }
+.journal-retry-btn {
+  border: none; border-radius: 8px; padding: 5px 8px; background: #fee2e2;
+  color: #dc2626; font-size: 11px; font-weight: 700; cursor: pointer;
+}
+.journal-textarea {
+  width: 100%; min-height: 240px; padding: 16px; border: 1.5px solid #e0e0e0;
+  border-radius: 12px; background: #fafafa; color: #2f2f38; font: inherit;
+  font-size: 15px; line-height: 1.75; outline: none; resize: vertical;
+}
+.journal-textarea:focus { border-color: #4f46e5; background: #fff; }
+.journal-textarea:disabled { color: #aaa; cursor: wait; }
+.journal-history { margin-top: 18px; border-top: 1px solid #f0f0f0; padding-top: 14px; }
+.journal-history-title { margin-bottom: 6px; color: #555; font-size: 13px; font-weight: 700; }
+.journal-history-list { display: grid; }
+.journal-history-item {
+  display: grid; gap: 3px; width: 100%; padding: 10px 0; border: none;
+  border-bottom: 1px solid #f3f4f6; background: none; text-align: left; cursor: pointer;
+}
+.journal-history-item strong { color: #444; font-size: 12px; }
+.journal-history-item span {
+  overflow: hidden; color: #999; font-size: 13px; text-overflow: ellipsis; white-space: nowrap;
+}
+.journal-history-item:hover strong { color: #4f46e5; }
+.journal-history-empty { padding: 14px 0; color: #bbb; font-size: 13px; text-align: center; }
+.journal-history-empty.error { color: #dc2626; }
+.journal-more-btn {
+  width: 100%; margin-top: 8px; padding: 9px; border: none; border-radius: 9px;
+  background: #f0f2f5; color: #666; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.journal-more-btn:disabled { cursor: wait; opacity: .65; }
 .custom-checklist { list-style: none; margin-bottom: 12px; }
 .custom-checklist li {
   display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f3f4f6;
@@ -1044,7 +1126,10 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
   select,
   .task-edit-input,
   .motto-input,
-  .custom-memo-input {
+  .custom-memo-input,
+  .custom-image-caption,
+  .journal-date-input,
+  .journal-textarea {
     font-size: 16px;
   }
 

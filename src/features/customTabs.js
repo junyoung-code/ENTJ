@@ -1,16 +1,28 @@
 import { closeModal, openModal, startTextEdit } from '../utils/dom.js';
 import { getCustomTabs, saveCustomTabs } from '../storage/storage.js';
-
-const BLOCK_TEMPLATES = [
-  { type: 'checklist', label: '기본 체크리스트 블록', title: '제목 없는 체크리스트' },
-  { type: 'priority', label: '우선순위 체크리스트 블록', title: '제목없는 우선순위 체크리스트' },
-  { type: 'recordable', label: '기록가능 체크리스트 블록', title: '제목없는 기록가능 체크리스트' },
-  { type: 'timer', label: '기본 스탑워치 블록', title: '스톱워치' }
-];
+import { formatDateLabel, todayKey } from '../utils/date.js';
+import { BLOCK_TEMPLATES, createCustomComponent, validateBlockImage } from './customBlockTypes.js';
+import {
+  deleteBlockImage,
+  replaceBlockImage,
+  resolveBlockImageUrl,
+  uploadBlockImage
+} from '../storage/media.js';
+import {
+  deleteJournalEntry,
+  getJournalEntry,
+  listJournalEntries,
+  saveJournalEntry,
+  stageJournalDraft
+} from '../storage/journal.js';
+import { deleteCustomComponentData } from '../storage/customTabCleanup.js';
 
 let activeTabId = null;
 let activeBlockItem = null;
 const timerIntervals = new Map();
+const journalViewDates = new Map();
+const journalSaveTimers = new Map();
+const journalSaveVersions = new Map();
 
 function makeId(prefix) {
   return `${prefix}-${Date.now()}`;
@@ -55,8 +67,29 @@ function moveComponent(tabId, from, to) {
   });
 }
 
-function removeComponent(tabId, componentId) {
+async function removeComponent(tabId, componentId) {
+  const component = getTab(tabId)?.components?.find((item) => item.id === componentId);
+  if (!component) return;
+  if (
+    (component.type === 'image' || component.type === 'journal')
+    && !confirm('이 블록과 저장된 기록을 모두 삭제할까요?')
+  ) return;
+
   stopTimerInterval(componentId);
+  [...journalSaveTimers.keys()].forEach((key) => {
+    if (!key.startsWith(`${componentId}|`)) return;
+    clearTimeout(journalSaveTimers.get(key));
+    journalSaveTimers.delete(key);
+  });
+
+  try {
+    await deleteCustomComponentData(component, tabId);
+  } catch (error) {
+    console.error('[custom-tabs] Block cleanup failed.', error);
+    alert('저장된 데이터를 삭제하지 못했어요. 잠시 후 다시 시도해주세요.');
+    return;
+  }
+
   updateTab(tabId, (tab) => {
     tab.components = tab.components.filter((component) => component.id !== componentId);
   });
@@ -68,7 +101,16 @@ function makeHeader(tabId, component, idx, total) {
 
   const title = document.createElement('div');
   title.className = 'custom-component-title';
-  title.textContent = component.title;
+  title.textContent = component.title || '제목 없는 블록';
+  title.title = '클릭해서 제목 수정';
+  title.addEventListener('click', () => {
+    startTextEdit(title, title.textContent, (nextText) => {
+      updateTab(tabId, (tab) => {
+        const target = tab.components.find((item) => item.id === component.id);
+        if (target) target.title = nextText;
+      });
+    }, 80, { className: 'block-edit-input' });
+  });
 
   const actions = document.createElement('div');
   actions.className = 'custom-component-actions';
@@ -894,6 +936,342 @@ function renderTimer(card, tabId, component) {
   card.appendChild(controls);
 }
 
+function setBlockStatus(status, text, isError = false) {
+  status.textContent = text;
+  status.classList.toggle('error', isError);
+}
+
+function makeImagePicker(tabId, component, status, onBusyChange) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.className = 'custom-image-file-input';
+  input.accept = 'image/jpeg,image/png,image/webp';
+
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    const validationMessage = validateBlockImage(file);
+    if (validationMessage) {
+      setBlockStatus(status, validationMessage, true);
+      return;
+    }
+
+    onBusyChange(true);
+    setBlockStatus(status, '업로드 준비 중…');
+    try {
+      const options = {
+        tabId,
+        blockId: component.id,
+        file,
+        onProgress: (progress) => setBlockStatus(status, `업로드 중 ${progress}%`)
+      };
+      const image = component.image?.storagePath
+        ? await replaceBlockImage({
+          ...options,
+          previousStoragePath: component.image.storagePath
+        })
+        : await uploadBlockImage(options);
+
+      updateTab(tabId, (tab) => {
+        const target = tab.components.find((item) => item.id === component.id);
+        if (target) target.image = image;
+      });
+    } catch (error) {
+      console.error('[custom-tabs] Image upload failed.', error);
+      setBlockStatus(status, error.message || '사진을 올리지 못했어요.', true);
+      onBusyChange(false);
+    }
+  });
+
+  return input;
+}
+
+function renderImageBlock(card, tabId, component, idx, total) {
+  card.appendChild(makeHeader(tabId, component, idx, total));
+
+  const body = document.createElement('div');
+  body.className = 'custom-image-body';
+  const status = document.createElement('p');
+  status.className = 'custom-block-status';
+  const uploadButton = document.createElement('button');
+  uploadButton.type = 'button';
+  uploadButton.className = 'btn-confirm custom-image-upload-btn';
+  uploadButton.textContent = component.image ? '사진 교체' : '사진 선택';
+  let busy = false;
+  const setBusy = (nextBusy) => {
+    busy = nextBusy;
+    uploadButton.disabled = nextBusy;
+  };
+  const picker = makeImagePicker(tabId, component, status, setBusy);
+  uploadButton.addEventListener('click', () => {
+    if (!busy) picker.click();
+  });
+
+  if (component.image?.storagePath) {
+    const preview = document.createElement('div');
+    preview.className = 'custom-image-preview';
+    const image = document.createElement('img');
+    image.alt = component.caption || component.title || '업로드한 사진';
+    preview.appendChild(image);
+    body.appendChild(preview);
+    setBlockStatus(status, '사진 불러오는 중…');
+    resolveBlockImageUrl(component.image.storagePath)
+      .then((url) => {
+        if (!image.isConnected) return;
+        image.src = url;
+        setBlockStatus(status, '');
+      })
+      .catch((error) => {
+        console.error('[custom-tabs] Image load failed.', error);
+        if (image.isConnected) setBlockStatus(status, '사진을 불러오지 못했어요.', true);
+      });
+
+    const caption = document.createElement('textarea');
+    caption.className = 'custom-image-caption';
+    caption.rows = 2;
+    caption.maxLength = 300;
+    caption.placeholder = '사진 설명을 적어보세요 (선택)';
+    caption.value = component.caption || '';
+    caption.addEventListener('input', () => {
+      const tabs = getCustomTabs();
+      const tab = tabs.find((item) => item.id === tabId);
+      const target = tab?.components.find((item) => item.id === component.id);
+      if (!target) return;
+      target.caption = caption.value;
+      saveCustomTabs(tabs);
+    });
+
+    const controls = document.createElement('div');
+    controls.className = 'custom-image-controls';
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'btn-cancel';
+    deleteButton.textContent = '사진 삭제';
+    deleteButton.addEventListener('click', async () => {
+      if (!confirm('이 사진을 삭제할까요?')) return;
+      setBusy(true);
+      deleteButton.disabled = true;
+      setBlockStatus(status, '사진 삭제 중…');
+      try {
+        await deleteBlockImage(component.image.storagePath);
+        updateTab(tabId, (tab) => {
+          const target = tab.components.find((item) => item.id === component.id);
+          if (!target) return;
+          target.image = null;
+          target.caption = '';
+        });
+      } catch (error) {
+        console.error('[custom-tabs] Image delete failed.', error);
+        setBlockStatus(status, '사진을 삭제하지 못했어요.', true);
+        setBusy(false);
+        deleteButton.disabled = false;
+      }
+    });
+    controls.append(uploadButton, deleteButton);
+    body.append(caption, controls);
+  } else {
+    const empty = document.createElement('div');
+    empty.className = 'custom-image-empty';
+    const hint = document.createElement('p');
+    hint.textContent = 'JPG, PNG, WebP · 최대 10MB';
+    empty.append(uploadButton, hint);
+    body.appendChild(empty);
+  }
+
+  body.append(picker, status);
+  card.appendChild(body);
+}
+
+function shiftDate(dateKey, amount) {
+  const date = new Date(`${dateKey}T12:00:00`);
+  date.setDate(date.getDate() + amount);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function renderJournalBlock(card, tabId, component, idx, total) {
+  card.appendChild(makeHeader(tabId, component, idx, total));
+  const selectedDate = journalViewDates.get(component.id) || todayKey();
+  const saveKey = `${component.id}|${selectedDate}`;
+  journalViewDates.set(component.id, selectedDate);
+
+  const dateRow = document.createElement('div');
+  dateRow.className = 'journal-date-row';
+  const previous = document.createElement('button');
+  previous.type = 'button';
+  previous.className = 'journal-date-nav';
+  previous.textContent = '‹';
+  previous.title = '이전 날짜';
+  const dateInput = document.createElement('input');
+  dateInput.type = 'date';
+  dateInput.className = 'journal-date-input';
+  dateInput.max = todayKey();
+  dateInput.value = selectedDate;
+  const next = document.createElement('button');
+  next.type = 'button';
+  next.className = 'journal-date-nav';
+  next.textContent = '›';
+  next.title = '다음 날짜';
+  next.disabled = selectedDate >= todayKey();
+
+  const selectDate = (date) => {
+    journalViewDates.set(component.id, date > todayKey() ? todayKey() : date);
+    renderCustomTabs();
+  };
+  previous.addEventListener('click', () => selectDate(shiftDate(selectedDate, -1)));
+  next.addEventListener('click', () => selectDate(shiftDate(selectedDate, 1)));
+  dateInput.addEventListener('change', () => {
+    if (dateInput.value) selectDate(dateInput.value);
+  });
+  dateRow.append(previous, dateInput, next);
+
+  const statusRow = document.createElement('div');
+  statusRow.className = 'journal-status-row';
+  const dateLabel = document.createElement('span');
+  dateLabel.className = 'journal-date-label';
+  dateLabel.textContent = formatDateLabel(selectedDate);
+  const status = document.createElement('span');
+  status.className = 'custom-block-status journal-save-status';
+  const retry = document.createElement('button');
+  retry.type = 'button';
+  retry.className = 'journal-retry-btn';
+  retry.textContent = '다시 시도';
+  retry.hidden = true;
+  statusRow.append(dateLabel, status, retry);
+
+  const textarea = document.createElement('textarea');
+  textarea.className = 'journal-textarea';
+  textarea.placeholder = '오늘의 생각과 기억을 편하게 적어보세요.';
+  textarea.disabled = true;
+
+  const history = document.createElement('div');
+  history.className = 'journal-history';
+  const historyTitle = document.createElement('div');
+  historyTitle.className = 'journal-history-title';
+  historyTitle.textContent = '지난 기록';
+  const historyList = document.createElement('div');
+  historyList.className = 'journal-history-list';
+  const moreButton = document.createElement('button');
+  moreButton.type = 'button';
+  moreButton.className = 'journal-more-btn';
+  moreButton.textContent = '더 보기';
+  moreButton.hidden = true;
+  history.append(historyTitle, historyList, moreButton);
+
+  let lastHistoryDate = null;
+  let historyVersion = 0;
+  async function loadHistory(reset = false) {
+    if (reset) historyVersion += 1;
+    const requestVersion = historyVersion;
+    if (reset) {
+      historyList.innerHTML = '';
+      lastHistoryDate = null;
+    }
+    moreButton.disabled = true;
+    try {
+      const entries = await listJournalEntries(component.id, { afterDate: lastHistoryDate });
+      if (!historyList.isConnected || requestVersion !== historyVersion) return;
+      if (reset && entries.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'journal-history-empty';
+        empty.textContent = '아직 저장된 기록이 없어요.';
+        historyList.appendChild(empty);
+      }
+      entries.forEach((entry) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'journal-history-item';
+        const label = document.createElement('strong');
+        label.textContent = formatDateLabel(entry.date);
+        const preview = document.createElement('span');
+        preview.textContent = entry.text.replace(/\s+/g, ' ').trim().slice(0, 70) || '빈 기록';
+        button.append(label, preview);
+        button.addEventListener('click', () => selectDate(entry.date));
+        historyList.appendChild(button);
+      });
+      lastHistoryDate = entries.at(-1)?.date || lastHistoryDate;
+      moreButton.hidden = entries.length < 30;
+    } catch (error) {
+      console.error('[custom-tabs] Journal history load failed.', error);
+      if (historyList.isConnected && historyList.children.length === 0) {
+        const failed = document.createElement('p');
+        failed.className = 'journal-history-empty error';
+        failed.textContent = '지난 기록을 불러오지 못했어요.';
+        historyList.appendChild(failed);
+      }
+    } finally {
+      moreButton.disabled = false;
+    }
+  }
+
+  let entryLoaded = false;
+  async function persistText(version) {
+    const text = textarea.value;
+    try {
+      if (text.trim()) await saveJournalEntry(component.id, selectedDate, text);
+      else await deleteJournalEntry(component.id, selectedDate);
+      if (!textarea.isConnected || journalSaveVersions.get(saveKey) !== version) return;
+      setBlockStatus(status, '저장됨');
+      retry.hidden = true;
+      await loadHistory(true);
+    } catch (error) {
+      console.error('[custom-tabs] Journal save failed.', error);
+      if (!textarea.isConnected || journalSaveVersions.get(saveKey) !== version) return;
+      setBlockStatus(status, '저장 실패', true);
+      retry.hidden = false;
+    }
+  }
+
+  async function loadSelectedEntry() {
+    textarea.disabled = true;
+    setBlockStatus(status, '불러오는 중…');
+    retry.hidden = true;
+    try {
+      const entry = await getJournalEntry(component.id, selectedDate);
+      if (!textarea.isConnected) return;
+      textarea.value = entry.text;
+      textarea.disabled = false;
+      entryLoaded = true;
+      setBlockStatus(status, entry.hasDraft ? '저장되지 않은 초안' : '');
+      retry.hidden = !entry.hasDraft;
+    } catch (error) {
+      console.error('[custom-tabs] Journal load failed.', error);
+      if (!textarea.isConnected) return;
+      entryLoaded = false;
+      setBlockStatus(status, '기록을 불러오지 못했어요.', true);
+      retry.hidden = false;
+    }
+  }
+
+  function scheduleSave() {
+    stageJournalDraft(component.id, selectedDate, textarea.value);
+    const version = (journalSaveVersions.get(saveKey) || 0) + 1;
+    journalSaveVersions.set(saveKey, version);
+    clearTimeout(journalSaveTimers.get(saveKey));
+    setBlockStatus(status, '저장 중…');
+    retry.hidden = true;
+    journalSaveTimers.set(saveKey, setTimeout(() => persistText(version), 500));
+  }
+
+  textarea.addEventListener('input', scheduleSave);
+  retry.addEventListener('click', () => {
+    if (!entryLoaded) {
+      loadSelectedEntry();
+      return;
+    }
+    const version = (journalSaveVersions.get(saveKey) || 0) + 1;
+    journalSaveVersions.set(saveKey, version);
+    setBlockStatus(status, '저장 중…');
+    retry.hidden = true;
+    persistText(version);
+  });
+  moreButton.addEventListener('click', () => loadHistory(false));
+
+  card.append(dateRow, statusRow, textarea, history);
+  loadSelectedEntry();
+  loadHistory(true);
+}
+
 function renderCustomPanel(root, tab) {
   stopAllTimerIntervals();
   root.innerHTML = '';
@@ -927,6 +1305,8 @@ function renderCustomPanel(root, tab) {
     else if (component.type === 'priority') renderPriorityBlock(card, tab.id, component);
     else if (component.type === 'recordable') renderRecordableBlock(card, tab.id, component);
     else if (component.type === 'timer') renderTimer(card, tab.id, component);
+    else if (component.type === 'image') renderImageBlock(card, tab.id, component, idx, tab.components.length);
+    else if (component.type === 'journal') renderJournalBlock(card, tab.id, component, idx, tab.components.length);
     else {
       card.appendChild(makeHeader(tab.id, component, idx, tab.components.length));
       renderMemo(card, tab.id, component);
@@ -958,23 +1338,7 @@ export function initCustomTabs() {
     button.addEventListener('click', () => {
       if (!activeTabId || !getTab(activeTabId)) return;
       updateTab(activeTabId, (tab) => {
-        const component = {
-          id: makeId(template.type),
-          type: template.type,
-          title: template.title,
-          text: '',
-          items: []
-        };
-        if (template.type === 'timer') {
-          component.timer = { subject: '', elapsed: 0, running: false, startedAt: null };
-        }
-        if (template.type === 'priority') {
-          component.priorities = [];
-        }
-        if (template.type === 'recordable') {
-          component.records = [];
-        }
-        tab.components.push(component);
+        tab.components.push(createCustomComponent(template, makeId(template.type)));
       });
       closeModal('componentTemplateModal');
     });

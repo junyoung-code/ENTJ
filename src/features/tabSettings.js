@@ -1,5 +1,6 @@
 import { closeModal, openModal } from '../utils/dom.js';
 import { getCustomTabs, getTabPrefs, saveCustomTabs, saveTabPrefs } from '../storage/storage.js';
+import { deleteCustomTabData } from '../storage/customTabCleanup.js';
 
 function makeId() {
   return `custom-${Date.now()}`;
@@ -189,8 +190,20 @@ export function initTabSettings(defaultTabs, onTabsChanged) {
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.textContent = hidden ? '복구' : '삭제';
-      remove.addEventListener('click', () => {
+      remove.addEventListener('click', async () => {
         if (customTab) {
+          if (!confirm(`'${label}' 탭과 저장된 모든 블록 기록을 삭제할까요?`)) return;
+          remove.disabled = true;
+          remove.textContent = '삭제 중';
+          try {
+            await deleteCustomTabData(customTab);
+          } catch (error) {
+            console.error('[tab-settings] Custom tab cleanup failed.', error);
+            alert('탭의 저장 데이터를 삭제하지 못했어요. 잠시 후 다시 시도해주세요.');
+            remove.disabled = false;
+            remove.textContent = '삭제';
+            return;
+          }
           state.customTabs = state.customTabs.filter((tab) => tab.id !== id);
           state.order = state.order.filter((tabId) => tabId !== id);
           state.hidden = state.hidden.filter((tabId) => tabId !== id);
