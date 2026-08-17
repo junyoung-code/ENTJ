@@ -28,8 +28,19 @@ function corsHeaders(request) {
   };
 }
 
-function json(request, data, status = 200) {
-  return Response.json(data, { status, headers: corsHeaders(request) });
+function applyCors(request, response) {
+  Object.entries(corsHeaders(request)).forEach(([name, value]) => response.setHeader(name, value));
+}
+
+function sendJson(response, data, status = 200) {
+  return response.status(status).json(data);
+}
+
+async function requestJson(request) {
+  if (request.body && typeof request.body === 'object') return request.body;
+  if (typeof request.body === 'string') return JSON.parse(request.body);
+  if (typeof request.json === 'function') return request.json();
+  throw new RequestError('요청 내용을 읽을 수 없어요.');
 }
 
 async function verifyFirebaseUser(request) {
@@ -59,7 +70,7 @@ function requireOwnedPath(pathname, userId) {
 
 async function handleRead(request) {
   const userId = await verifyFirebaseUser(request);
-  const pathname = new URL(request.url).searchParams.get('pathname') || '';
+  const pathname = new URL(request.url, 'http://localhost').searchParams.get('pathname') || '';
   requireOwnedPath(pathname, userId);
 
   const validUntil = Date.now() + SIGNED_URL_LIFETIME;
@@ -74,21 +85,20 @@ async function handleRead(request) {
     pathname,
     validUntil
   });
-  return json(request, { url: presignedUrl });
+  return { url: presignedUrl };
 }
 
 async function handleDelete(request) {
   const userId = await verifyFirebaseUser(request);
-  const body = await request.json();
+  const body = await requestJson(request);
   const pathname = body.pathname || '';
   requireOwnedPath(pathname, userId);
   await del(pathname);
-  return new Response(null, { status: 204, headers: corsHeaders(request) });
 }
 
 async function handleClientUpload(request) {
-  const body = await request.json();
-  const response = await handleUpload({
+  const body = await requestJson(request);
+  return handleUpload({
     body,
     request,
     onBeforeGenerateToken: async (pathname) => {
@@ -104,7 +114,6 @@ async function handleClientUpload(request) {
     },
     onUploadCompleted: async () => {}
   });
-  return json(request, response);
 }
 
 function publicError(error) {
@@ -116,19 +125,26 @@ function publicError(error) {
     : new RequestError(error?.message || '사진 저장 요청에 실패했어요.');
 }
 
-export default async function handler(request) {
+export default async function handler(request, response) {
+  applyCors(request, response);
+
   if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders(request) });
+    return response.status(204).end();
   }
 
   try {
-    if (request.method === 'GET') return await handleRead(request);
-    if (request.method === 'DELETE') return await handleDelete(request);
-    if (request.method === 'POST') return await handleClientUpload(request);
-    return json(request, { error: '지원하지 않는 요청이에요.' }, 405);
+    if (request.method === 'GET') return sendJson(response, await handleRead(request));
+    if (request.method === 'DELETE') {
+      await handleDelete(request);
+      return response.status(204).end();
+    }
+    if (request.method === 'POST') {
+      return sendJson(response, await handleClientUpload(request));
+    }
+    return sendJson(response, { error: '지원하지 않는 요청이에요.' }, 405);
   } catch (error) {
     console.error('[blob-api] Request failed.', error);
     const responseError = publicError(error);
-    return json(request, { error: responseError.message }, responseError.status);
+    return sendJson(response, { error: responseError.message }, responseError.status);
   }
 }
