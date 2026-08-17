@@ -3,7 +3,7 @@ import { deleteJournalBlock } from './journal.js';
 
 export async function deleteCustomComponentData(component, tabId) {
   if (component.type === 'image') {
-    await deleteBlockImageData(tabId, component.id);
+    await deleteBlockImageData(component);
   } else if (component.type === 'journal') {
     await deleteJournalBlock(component.id);
   }

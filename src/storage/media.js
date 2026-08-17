@@ -1,12 +1,12 @@
-import {
-  deleteObject,
-  getDownloadURL,
-  listAll,
-  ref,
-  uploadBytesResumable
-} from 'firebase/storage';
-import { auth, storage } from '../firebase.js';
+import { upload } from '@vercel/blob/client';
+import { auth, isLocalDevelopment } from '../firebase.js';
 import { validateBlockImage } from '../features/customBlockTypes.js';
+import {
+  buildBlockImagePath,
+  getBlobImagePath
+} from './blobImages.js';
+
+const PRODUCTION_BLOB_API_URL = 'https://entj-murex.vercel.app/api/blob';
 
 const deletingBlocks = new Set();
 const activeUploads = new Map();
@@ -41,6 +41,39 @@ function makeFileId() {
   return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function blobApiUrl() {
+  return isLocalDevelopment ? PRODUCTION_BLOB_API_URL : '/api/blob';
+}
+
+async function requireIdToken() {
+  if (!auth.currentUser) throw new Error('사진을 저장하려면 로그인이 필요해요.');
+  return auth.currentUser.getIdToken();
+}
+
+async function readApiError(response, fallback) {
+  try {
+    const data = await response.json();
+    return data.error || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function deleteBlobImage(pathname) {
+  const idToken = await requireIdToken();
+  const response = await fetch(blobApiUrl(), {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${idToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ pathname })
+  });
+  if (!response.ok) {
+    throw new Error(await readApiError(response, '사진을 삭제하지 못했어요.'));
+  }
+}
+
 function readImageDimensions(file) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -66,31 +99,24 @@ export async function uploadBlockImage({ tabId, blockId, file, onProgress }) {
   return trackUpload(blockId, (async () => {
     const dimensions = await readImageDimensions(file);
     const fileId = `${makeFileId()}.${extensionForType(file.type)}`;
-    const storagePath = `users/${userId}/custom-tab-images/${tabId}/${blockId}/${fileId}`;
-    const imageRef = ref(storage, storagePath);
-    const task = uploadBytesResumable(imageRef, file, { contentType: file.type });
-
-    await new Promise((resolve, reject) => {
-      task.on(
-        'state_changed',
-        (snapshot) => {
-          const progress = snapshot.totalBytes
-            ? Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)
-            : 0;
-          onProgress?.(progress);
-        },
-        reject,
-        resolve
-      );
+    const pathname = buildBlockImagePath(userId, tabId, blockId, fileId);
+    const idToken = await requireIdToken();
+    const blob = await upload(pathname, file, {
+      access: 'private',
+      handleUploadUrl: blobApiUrl(),
+      headers: { Authorization: `Bearer ${idToken}` },
+      contentType: file.type,
+      onUploadProgress: ({ percentage }) => onProgress?.(Math.round(percentage))
     });
 
     if (deletingBlocks.has(blockId)) {
-      await deleteObject(imageRef);
+      await deleteBlobImage(blob.pathname);
       throw new Error('삭제된 사진 블록의 업로드를 취소했어요.');
     }
 
     return {
-      storagePath,
+      provider: 'vercel-blob',
+      pathname: blob.pathname,
       fileName: file.name,
       mimeType: file.type,
       size: file.size,
@@ -101,24 +127,37 @@ export async function uploadBlockImage({ tabId, blockId, file, onProgress }) {
   })());
 }
 
-export function resolveBlockImageUrl(storagePath) {
-  return getDownloadURL(ref(storage, storagePath));
-}
-
-export async function deleteBlockImage(storagePath) {
-  if (!storagePath) return;
-  try {
-    await deleteObject(ref(storage, storagePath));
-  } catch (error) {
-    if (error?.code !== 'storage/object-not-found') throw error;
+export async function resolveBlockImageUrl(image) {
+  const pathname = getBlobImagePath(image);
+  if (pathname) {
+    const idToken = await requireIdToken();
+    const response = await fetch(`${blobApiUrl()}?pathname=${encodeURIComponent(pathname)}`, {
+      headers: { Authorization: `Bearer ${idToken}` }
+    });
+    if (!response.ok) {
+      throw new Error(await readApiError(response, '사진을 불러오지 못했어요.'));
+    }
+    const data = await response.json();
+    return data.url;
   }
+
+  throw new Error('저장된 사진 경로가 없어요.');
 }
 
-export async function replaceBlockImage({ previousStoragePath, ...uploadOptions }) {
+export async function deleteBlockImage(image) {
+  const pathname = getBlobImagePath(image);
+  if (pathname) {
+    await deleteBlobImage(pathname);
+    return;
+  }
+
+}
+
+export async function replaceBlockImage({ previousImage, ...uploadOptions }) {
   const image = await uploadBlockImage(uploadOptions);
-  if (previousStoragePath) {
+  if (previousImage) {
     try {
-      await deleteBlockImage(previousStoragePath);
+      await deleteBlockImage(previousImage);
     } catch (error) {
       console.warn('[media] Previous image cleanup failed.', error);
     }
@@ -126,16 +165,13 @@ export async function replaceBlockImage({ previousStoragePath, ...uploadOptions 
   return image;
 }
 
-export async function deleteBlockImageData(tabId, blockId) {
+export async function deleteBlockImageData(component) {
+  const blockId = component.id;
   deletingBlocks.add(blockId);
   try {
     await Promise.allSettled([...(activeUploads.get(blockId) || [])]);
-    const userId = requireUserId();
-    const folder = ref(storage, `users/${userId}/custom-tab-images/${tabId}/${blockId}`);
-    const contents = await listAll(folder);
-    await Promise.all(contents.items.map((item) => deleteObject(item)));
-  } catch (error) {
+    await deleteBlockImage(component.image);
+  } finally {
     deletingBlocks.delete(blockId);
-    throw error;
   }
 }

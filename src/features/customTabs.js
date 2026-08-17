@@ -8,6 +8,7 @@ import {
   resolveBlockImageUrl,
   uploadBlockImage
 } from '../storage/media.js';
+import { hasBlockImage } from '../storage/blobImages.js';
 import {
   deleteJournalEntry,
   getJournalEntry,
@@ -966,10 +967,10 @@ function makeImagePicker(tabId, component, status, onBusyChange) {
         file,
         onProgress: (progress) => setBlockStatus(status, `업로드 중 ${progress}%`)
       };
-      const image = component.image?.storagePath
+      const image = hasBlockImage(component.image)
         ? await replaceBlockImage({
           ...options,
-          previousStoragePath: component.image.storagePath
+          previousImage: component.image
         })
         : await uploadBlockImage(options);
 
@@ -1008,7 +1009,7 @@ function renderImageBlock(card, tabId, component, idx, total) {
     if (!busy) picker.click();
   });
 
-  if (component.image?.storagePath) {
+  if (hasBlockImage(component.image)) {
     const preview = document.createElement('div');
     preview.className = 'custom-image-preview';
     const image = document.createElement('img');
@@ -1016,7 +1017,7 @@ function renderImageBlock(card, tabId, component, idx, total) {
     preview.appendChild(image);
     body.appendChild(preview);
     setBlockStatus(status, '사진 불러오는 중…');
-    resolveBlockImageUrl(component.image.storagePath)
+    resolveBlockImageUrl(component.image)
       .then((url) => {
         if (!image.isConnected) return;
         image.src = url;
@@ -1054,7 +1055,7 @@ function renderImageBlock(card, tabId, component, idx, total) {
       deleteButton.disabled = true;
       setBlockStatus(status, '사진 삭제 중…');
       try {
-        await deleteBlockImage(component.image.storagePath);
+        await deleteBlockImage(component.image);
         updateTab(tabId, (tab) => {
           const target = tab.components.find((item) => item.id === component.id);
           if (!target) return;
