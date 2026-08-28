@@ -907,10 +907,20 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
 .custom-image-body { display: flex; flex-direction: column; }
 .custom-image-preview {
   overflow: hidden; width: 100%; border: 1px solid #ececf1; border-radius: 12px;
-  background: #f8f9fc;
+  background: #f8f9fc; cursor: zoom-in;
 }
+.custom-image-preview:focus-visible { outline: 3px solid #818cf8; outline-offset: 3px; }
 .custom-image-preview img {
   display: block; width: 100%; max-height: 520px; object-fit: contain; margin: 0 auto;
+}
+.image-lightbox {
+  position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
+  padding: 24px; background: rgba(0, 0, 0, .82); cursor: zoom-out;
+}
+.image-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
+.image-lightbox-close {
+  position: absolute; top: 20px; right: 20px; width: 44px; height: 44px; border: 0; border-radius: 50%;
+  background: rgba(255, 255, 255, .9); color: #333; font-size: 30px; line-height: 1; cursor: pointer;
 }
 .custom-image-empty {
   display: flex; min-height: 150px; flex-direction: column; align-items: center;

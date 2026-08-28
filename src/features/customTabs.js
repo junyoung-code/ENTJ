@@ -24,6 +24,46 @@ const timerIntervals = new Map();
 const journalViewDates = new Map();
 const journalSaveTimers = new Map();
 const journalSaveVersions = new Map();
+let imageLightbox = null;
+
+function openImageLightbox(url, alt) {
+  imageLightbox?.querySelector('.image-lightbox-close')?.click();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'image-lightbox';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', '사진 크게 보기');
+
+  const closeButton = document.createElement('button');
+  closeButton.type = 'button';
+  closeButton.className = 'image-lightbox-close';
+  closeButton.setAttribute('aria-label', '사진 크게 보기 닫기');
+  closeButton.textContent = '×';
+
+  const image = document.createElement('img');
+  image.src = url;
+  image.alt = alt;
+  overlay.append(closeButton, image);
+  document.body.appendChild(overlay);
+  imageLightbox = overlay;
+
+  const close = () => {
+    overlay.remove();
+    if (imageLightbox === overlay) imageLightbox = null;
+    document.removeEventListener('keydown', onKeydown);
+  };
+  const onKeydown = (event) => {
+    if (event.key === 'Escape') close();
+  };
+
+  closeButton.addEventListener('click', close);
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) close();
+  });
+  document.addEventListener('keydown', onKeydown);
+  closeButton.focus();
+}
 
 function makeId(prefix) {
   return `${prefix}-${Date.now()}`;
@@ -1021,6 +1061,17 @@ function renderImageBlock(card, tabId, component, idx, total) {
       .then((url) => {
         if (!image.isConnected) return;
         image.src = url;
+        preview.tabIndex = 0;
+        preview.setAttribute('role', 'button');
+        preview.setAttribute('aria-label', '사진 크게 보기');
+        const open = () => openImageLightbox(url, image.alt);
+        preview.addEventListener('click', open);
+        preview.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            open();
+          }
+        });
         setBlockStatus(status, '');
       })
       .catch((error) => {
