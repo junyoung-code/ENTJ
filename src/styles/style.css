@@ -863,6 +863,27 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
 .custom-timer-header {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px;
 }
+.custom-component-drag-handle {
+  position: absolute; top: 2px; left: 50%; display: grid;
+  grid-template-columns: repeat(3, 4px); grid-template-rows: repeat(2, 4px); gap: 3px;
+  padding: 3px 12px 7px; transform: translateX(-50%); cursor: grab;
+  touch-action: none; -webkit-touch-callout: none; opacity: 0; transition: opacity .15s;
+}
+.custom-component-drag-dot { width: 4px; height: 4px; border-radius: 50%; background: #b7b7b7; }
+.custom-component-card:hover .custom-component-drag-handle,
+.custom-component-card.dragging .custom-component-drag-handle { opacity: 1; }
+.custom-components-reordering { user-select: none; }
+.custom-components-reordering .custom-component-drag-handle { cursor: grabbing; }
+.custom-component-card {
+  position: relative; transition: transform .15s, box-shadow .15s;
+}
+.custom-component-card.dragging {
+  z-index: 1; transform: scale(1.01);
+  box-shadow: 0 8px 24px rgba(79,70,229,.18), 0 0 0 2px rgba(79,70,229,.35);
+}
+@media (hover: none) {
+  .custom-component-drag-handle { opacity: 1; }
+}
 .custom-component-title { font-size: 15px; font-weight: 700; color: #333; }
 .custom-component-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .custom-component-actions button,

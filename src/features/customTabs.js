@@ -108,6 +108,19 @@ function moveComponent(tabId, from, to) {
   });
 }
 
+function makeComponentDragHandle() {
+  const handle = document.createElement('span');
+  handle.className = 'custom-component-drag-handle';
+  handle.title = '길게 눌러 순서 이동';
+  handle.setAttribute('aria-hidden', 'true');
+  for (let index = 0; index < 6; index += 1) {
+    const dot = document.createElement('span');
+    dot.className = 'custom-component-drag-dot';
+    handle.appendChild(dot);
+  }
+  return handle;
+}
+
 async function removeComponent(tabId, componentId) {
   const component = getTab(tabId)?.components?.find((item) => item.id === componentId);
   if (!component) return;
@@ -177,7 +190,7 @@ function makeHeader(tabId, component, idx, total) {
   remove.addEventListener('click', () => removeComponent(tabId, component.id));
 
   actions.append(up, down, remove);
-  header.append(title, actions);
+  header.append(title, makeComponentDragHandle(), actions);
   return header;
 }
 
@@ -276,7 +289,7 @@ function renderChecklist(card, tabId, component) {
   removeButton.addEventListener('click', () => removeComponent(tabId, component.id));
 
   actions.append(addButton, removeButton);
-  header.append(title, actions);
+  header.append(title, makeComponentDragHandle(), actions);
   card.appendChild(header);
 
   const list = document.createElement('ul');
@@ -548,7 +561,7 @@ function renderPriorityBlock(card, tabId, component) {
   removeButton.addEventListener('click', () => removeComponent(tabId, component.id));
 
   actions.append(addButton, removeButton);
-  header.append(title, actions);
+  header.append(title, makeComponentDragHandle(), actions);
   card.appendChild(header);
 
   const list = document.createElement('ul');
@@ -761,7 +774,7 @@ function renderRecordableBlock(card, tabId, component) {
   removeButton.addEventListener('click', () => removeComponent(tabId, component.id));
 
   actions.append(addButton, removeButton);
-  header.append(title, actions);
+  header.append(title, makeComponentDragHandle(), actions);
   card.appendChild(header);
 
   const description = document.createElement('p');
@@ -849,7 +862,7 @@ function renderTimer(card, tabId, component) {
   removeButton.textContent = '×';
   removeButton.addEventListener('click', () => removeComponent(tabId, component.id));
 
-  header.append(title, removeButton);
+  header.append(title, makeComponentDragHandle(), removeButton);
   card.appendChild(header);
 
   const subjectRow = document.createElement('div');
@@ -1324,6 +1337,90 @@ function renderJournalBlock(card, tabId, component, idx, total) {
   loadHistory(true);
 }
 
+function initComponentReorder(root, tabId) {
+  let pressTimer = null;
+  let pressStart = null;
+  let draggingCard = null;
+  let originalOrder = [];
+
+  function getCards() {
+    return [...root.querySelectorAll('.custom-component-card')];
+  }
+
+  function clearPressTimer() {
+    clearTimeout(pressTimer);
+    pressTimer = null;
+  }
+
+  function finishReorder(save) {
+    clearPressTimer();
+    pressStart = null;
+    if (!draggingCard) return;
+
+    const nextOrder = getCards().map((card) => card.dataset.componentId);
+    draggingCard.classList.remove('dragging');
+    root.classList.remove('custom-components-reordering');
+    draggingCard = null;
+
+    if (!save) {
+      const cardsById = new Map(getCards().map((card) => [card.dataset.componentId, card]));
+      originalOrder.forEach((id) => root.appendChild(cardsById.get(id)));
+      return;
+    }
+
+    if (nextOrder.every((id, index) => id === originalOrder[index])) return;
+
+    updateTab(tabId, (tab) => {
+      const componentsById = new Map(tab.components.map((component) => [component.id, component]));
+      tab.components = nextOrder.map((id) => componentsById.get(id)).filter(Boolean);
+    });
+  }
+
+  function moveDraggedCard(pointerY) {
+    const target = getCards()
+      .filter((card) => card !== draggingCard)
+      .find((card) => pointerY < card.getBoundingClientRect().top + card.getBoundingClientRect().height / 2);
+
+    if (target) root.insertBefore(draggingCard, target);
+    else root.appendChild(draggingCard);
+  }
+
+  getCards().forEach((card) => {
+    const handle = card.querySelector('.custom-component-drag-handle');
+    if (!handle) return;
+
+    handle.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      pressStart = { x: event.clientX, y: event.clientY };
+      originalOrder = getCards().map((item) => item.dataset.componentId);
+      clearPressTimer();
+      pressTimer = setTimeout(() => {
+        draggingCard = card;
+        root.classList.add('custom-components-reordering');
+        card.classList.add('dragging');
+      }, 350);
+      handle.setPointerCapture?.(event.pointerId);
+    });
+
+    handle.addEventListener('pointermove', (event) => {
+      if (!pressStart) return;
+      const distance = Math.hypot(event.clientX - pressStart.x, event.clientY - pressStart.y);
+      if (!draggingCard && distance > 8) {
+        clearPressTimer();
+        pressStart = null;
+        return;
+      }
+      if (!draggingCard) return;
+      event.preventDefault();
+      moveDraggedCard(event.clientY);
+    });
+
+    handle.addEventListener('pointerup', () => finishReorder(true));
+    handle.addEventListener('pointercancel', () => finishReorder(false));
+    handle.addEventListener('contextmenu', (event) => event.preventDefault());
+  });
+}
+
 function renderCustomPanel(root, tab) {
   stopAllTimerIntervals();
   root.innerHTML = '';
@@ -1352,6 +1449,7 @@ function renderCustomPanel(root, tab) {
   tab.components.forEach((component, idx) => {
     const card = document.createElement('div');
     card.className = 'card custom-component-card';
+    card.dataset.componentId = component.id;
 
     if (component.type === 'checklist') renderChecklist(card, tab.id, component);
     else if (component.type === 'priority') renderPriorityBlock(card, tab.id, component);
@@ -1366,6 +1464,8 @@ function renderCustomPanel(root, tab) {
 
     root.appendChild(card);
   });
+
+  initComponentReorder(root, tab.id);
 }
 
 export function renderCustomTabs() {
