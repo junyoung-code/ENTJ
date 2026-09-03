@@ -1342,6 +1342,7 @@ function initComponentReorder(root, tabId) {
   let pressStart = null;
   let draggingCard = null;
   let originalOrder = [];
+  let activePointerId = null;
 
   function getCards() {
     return [...root.querySelectorAll('.custom-component-card')];
@@ -1352,6 +1353,15 @@ function initComponentReorder(root, tabId) {
     pressTimer = null;
   }
 
+  function stopTracking() {
+    clearPressTimer();
+    pressStart = null;
+    activePointerId = null;
+    document.removeEventListener('pointermove', handlePointerMove);
+    document.removeEventListener('pointerup', handlePointerUp);
+    document.removeEventListener('pointercancel', handlePointerCancel);
+  }
+
   function startReorder(card) {
     draggingCard = card;
     root.classList.add('custom-components-reordering');
@@ -1359,8 +1369,7 @@ function initComponentReorder(root, tabId) {
   }
 
   function finishReorder(save) {
-    clearPressTimer();
-    pressStart = null;
+    stopTracking();
     if (!draggingCard) return;
 
     const nextOrder = getCards().map((card) => card.dataset.componentId);
@@ -1391,6 +1400,26 @@ function initComponentReorder(root, tabId) {
     else root.appendChild(draggingCard);
   }
 
+  function handlePointerMove(event) {
+    if (!pressStart || event.pointerId !== activePointerId) return;
+    const distance = Math.hypot(event.clientX - pressStart.x, event.clientY - pressStart.y);
+    if (!draggingCard && distance > 8) {
+      stopTracking();
+      return;
+    }
+    if (!draggingCard) return;
+    event.preventDefault();
+    moveDraggedCard(event.clientY);
+  }
+
+  function handlePointerUp(event) {
+    if (event.pointerId === activePointerId) finishReorder(true);
+  }
+
+  function handlePointerCancel(event) {
+    if (event.pointerId === activePointerId) finishReorder(false);
+  }
+
   getCards().forEach((card) => {
     const handle = card.querySelector('.custom-component-drag-handle');
     if (!handle) return;
@@ -1398,28 +1427,16 @@ function initComponentReorder(root, tabId) {
     handle.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) return;
       pressStart = { x: event.clientX, y: event.clientY };
+      activePointerId = event.pointerId;
       originalOrder = getCards().map((item) => item.dataset.componentId);
       clearPressTimer();
       if (event.pointerType === 'mouse') startReorder(card);
       else pressTimer = setTimeout(() => startReorder(card), 350);
-      handle.setPointerCapture?.(event.pointerId);
+      document.addEventListener('pointermove', handlePointerMove, { passive: false });
+      document.addEventListener('pointerup', handlePointerUp);
+      document.addEventListener('pointercancel', handlePointerCancel);
     });
 
-    handle.addEventListener('pointermove', (event) => {
-      if (!pressStart) return;
-      const distance = Math.hypot(event.clientX - pressStart.x, event.clientY - pressStart.y);
-      if (!draggingCard && distance > 8) {
-        clearPressTimer();
-        pressStart = null;
-        return;
-      }
-      if (!draggingCard) return;
-      event.preventDefault();
-      moveDraggedCard(event.clientY);
-    });
-
-    handle.addEventListener('pointerup', () => finishReorder(true));
-    handle.addEventListener('pointercancel', () => finishReorder(false));
     handle.addEventListener('contextmenu', (event) => event.preventDefault());
   });
 }
