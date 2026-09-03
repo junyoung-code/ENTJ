@@ -111,7 +111,7 @@ function moveComponent(tabId, from, to) {
 function makeComponentDragHandle() {
   const handle = document.createElement('span');
   handle.className = 'custom-component-drag-handle';
-  handle.title = '길게 눌러 순서 이동';
+  handle.title = '드래그해서 순서 이동';
   handle.setAttribute('aria-hidden', 'true');
   for (let index = 0; index < 6; index += 1) {
     const dot = document.createElement('span');
@@ -1352,6 +1352,12 @@ function initComponentReorder(root, tabId) {
     pressTimer = null;
   }
 
+  function startReorder(card) {
+    draggingCard = card;
+    root.classList.add('custom-components-reordering');
+    card.classList.add('dragging');
+  }
+
   function finishReorder(save) {
     clearPressTimer();
     pressStart = null;
@@ -1394,11 +1400,8 @@ function initComponentReorder(root, tabId) {
       pressStart = { x: event.clientX, y: event.clientY };
       originalOrder = getCards().map((item) => item.dataset.componentId);
       clearPressTimer();
-      pressTimer = setTimeout(() => {
-        draggingCard = card;
-        root.classList.add('custom-components-reordering');
-        card.classList.add('dragging');
-      }, 350);
+      if (event.pointerType === 'mouse') startReorder(card);
+      else pressTimer = setTimeout(() => startReorder(card), 350);
       handle.setPointerCapture?.(event.pointerId);
     });
 
