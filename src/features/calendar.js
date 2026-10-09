@@ -1,5 +1,5 @@
 import { formatDateLabel, todayKey } from '../utils/date.js';
-import { getRecordByDate, getRecords, saveRecordByDate } from '../storage/storage.js';
+import { getRecordByDate, getRecords } from '../storage/storage.js';
 import { checklistRate } from '../storage/checklists.js';
 import { renderChecklistRecord } from './checklistRecord.js';
 
@@ -143,10 +143,7 @@ function showDayDetail(key) {
   title.className = 'record-section-title';
   title.textContent = 'To Do / Priority';
   panel.appendChild(title);
-  renderChecklistRecord(panel, todos, true, () => {
-    saveRecordByDate(key, rec);
-    renderCalendar();
-  });
+  renderChecklistRecord(panel, todos);
 }
 
 export function renderCalendar() {

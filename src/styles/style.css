@@ -1177,11 +1177,9 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
 .checklist-import-actions { flex-wrap: wrap; }
 .checklist-import-actions button:disabled { opacity: .45; cursor: default; }
 .record-checklist-details { padding-left: 24px; margin: 0 0 12px 12px; border-left: 2px solid #e0e7ff; }
-.record-checklist-group .record-toggle-btn { width: 24px; height: 24px; font-size: 12px; flex-shrink: 0; }
-.record-checklist-group .record-toggle-btn.done { color: #fff; }
-.record-checklist-group .record-text-btn { min-width: 0; overflow-wrap: anywhere; }
-.record-checklist-group .task-edit-input { min-width: 0; width: 100%; }
-.record-section-title .record-text-btn { color: #888; }
+.record-checklist-status { width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; background: #e0e0e0; color: #444; }
+.record-checklist-status.done { background: #4f46e5; color: #fff; }
+.record-checklist-group .record-text-inline { min-width: 0; overflow-wrap: anywhere; }
 
 @media (max-width: 640px) {
   input,
