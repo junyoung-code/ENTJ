@@ -1,5 +1,7 @@
 import { closeModal, openModal, startTextEdit } from '../utils/dom.js';
-import { getCustomTabs, saveCustomTabs } from '../storage/storage.js';
+import { getChecklistByDate, getCustomTabs, saveChecklistByDate, saveCustomTabs } from '../storage/storage.js';
+import { syncItemDone } from '../storage/checklists.js';
+import { makeChecklistImportButton } from './checklistImport.js';
 import { formatDateLabel, todayKey } from '../utils/date.js';
 import { BLOCK_TEMPLATES, createCustomComponent, validateBlockImage } from './customBlockTypes.js';
 import {
@@ -100,6 +102,24 @@ function updateTab(tabId, updater, options = {}) {
   if (options.render !== false) renderCustomTabs();
 }
 
+function updateChecklist(tabId, component, updater, options = {}) {
+  const tabs = getCustomTabs();
+  const tab = tabs.find((item) => item.id === tabId);
+  const target = tab?.components?.find((item) => item.id === component.id);
+  if (!target) return;
+  const source = { tabId, blockId: component.id };
+  const field = target.type === 'priority' ? 'priorities' : 'items';
+  const previousTitle = target.title;
+  target[field] = getChecklistByDate(component.recordDate, source);
+  updater(tab);
+  const items = target[field];
+  delete target.items;
+  delete target.priorities;
+  if (previousTitle !== target.title) saveCustomTabs(tabs);
+  saveChecklistByDate(component.recordDate, source, items);
+  if (options.render !== false) renderCustomTabs();
+}
+
 function moveComponent(tabId, from, to) {
   updateTab(tabId, (tab) => {
     if (to < 0 || to >= tab.components.length) return;
@@ -128,6 +148,9 @@ async function removeComponent(tabId, componentId) {
     (component.type === 'image' || component.type === 'journal')
     && !confirm('이 블록과 저장된 기록을 모두 삭제할까요?')
   ) return;
+
+  if (['checklist', 'priority'].includes(component.type)
+    && !confirm('이 블록을 삭제할까요? 날짜별 체크리스트 기록은 유지됩니다.')) return;
 
   stopTimerInterval(componentId);
   [...journalSaveTimers.keys()].forEach((key) => {
@@ -256,7 +279,7 @@ function renderChecklist(card, tabId, component) {
   title.title = '클릭해서 제목 수정';
   title.addEventListener('click', () => {
     startTextEdit(title, title.textContent, (nextText) => {
-      updateTab(tabId, (tab) => {
+      updateChecklist(tabId, component, (tab) => {
         const target = tab.components.find((item) => item.id === component.id);
         if (!target) return;
         target.title = nextText || '제목 없는 체크리스트';
@@ -273,7 +296,7 @@ function renderChecklist(card, tabId, component) {
   addButton.title = '항목 추가';
   addButton.textContent = '+';
   addButton.addEventListener('click', () => {
-    activeBlockItem = { type: 'checklist', tabId, blockId: component.id };
+    activeBlockItem = { type: 'checklist', tabId, blockId: component.id, date: component.recordDate };
     document.getElementById('blockItemInput').value = '';
     document.querySelector('#blockItemModal h3').textContent = '할 일 추가';
     document.getElementById('blockItemInput').placeholder = '오늘 할 일을 입력하세요';
@@ -288,7 +311,7 @@ function renderChecklist(card, tabId, component) {
   removeButton.textContent = '×';
   removeButton.addEventListener('click', () => removeComponent(tabId, component.id));
 
-  actions.append(addButton, removeButton);
+  actions.append(makeChecklistImportButton({ tabId, blockId: component.id }, renderCustomTabs), addButton, removeButton);
   header.append(title, makeComponentDragHandle(), actions);
   card.appendChild(header);
 
@@ -306,7 +329,7 @@ function renderChecklist(card, tabId, component) {
       component.items[itemIdx].done = checkbox.checked;
       row.className = 'task-item' + (checkbox.checked ? ' done' : '');
       syncChecklistProgress(card, component);
-      updateTab(tabId, (tab) => {
+      updateChecklist(tabId, component, (tab) => {
         tab.components.find((target) => target.id === component.id).items[itemIdx].done = checkbox.checked;
       }, { render: false });
     });
@@ -317,7 +340,7 @@ function renderChecklist(card, tabId, component) {
     text.title = '클릭해서 수정';
     text.addEventListener('click', () => {
       startTextEdit(text, item.text, (nextText) => {
-        updateTab(tabId, (tab) => {
+        updateChecklist(tabId, component, (tab) => {
           tab.components.find((target) => target.id === component.id).items[itemIdx].text = nextText;
         });
       });
@@ -328,7 +351,7 @@ function renderChecklist(card, tabId, component) {
     remove.className = 'delete-btn';
     remove.textContent = '×';
     remove.addEventListener('click', () => {
-      updateTab(tabId, (tab) => {
+      updateChecklist(tabId, component, (tab) => {
         tab.components.find((target) => target.id === component.id).items.splice(itemIdx, 1);
       });
     });
@@ -361,12 +384,6 @@ function normalizeBlockPriorities(component) {
   getBlockPriorities(component).forEach((item, idx) => {
     item.priority = idx + 1;
   });
-}
-
-function syncPriorityDoneFromDetails(item) {
-  const details = getPriorityDetails(item);
-  if (details.length === 0) return;
-  item.done = details.every((detail) => detail.done);
 }
 
 function syncPriorityProgress(card, component) {
@@ -441,7 +458,8 @@ function startPriorityDetailAdd(list, item, onSave) {
     if (save && !text) return;
     finished = true;
     if (save && text) {
-      details.push({ text, done: false });
+      details.push({ id: crypto.randomUUID(), text, done: false });
+      syncItemDone(item);
       onSave();
       return;
     }
@@ -484,7 +502,7 @@ function appendPriorityDetails(container, item, onSave) {
     number.title = '세부 우선순위 완수';
     number.addEventListener('click', () => {
       details[detailIdx].done = !details[detailIdx].done;
-      syncPriorityDoneFromDetails(item);
+      syncItemDone(item);
       onSave();
     });
 
@@ -504,6 +522,7 @@ function appendPriorityDetails(container, item, onSave) {
     remove.textContent = '×';
     remove.addEventListener('click', () => {
       details.splice(detailIdx, 1);
+      syncItemDone(item);
       onSave();
     });
 
@@ -528,7 +547,7 @@ function renderPriorityBlock(card, tabId, component) {
   title.title = '클릭해서 제목 수정';
   title.addEventListener('click', () => {
     startTextEdit(title, title.textContent, (nextText) => {
-      updateTab(tabId, (tab) => {
+      updateChecklist(tabId, component, (tab) => {
         const target = tab.components.find((item) => item.id === component.id);
         if (!target) return;
         target.title = nextText || '제목없는 우선순위 체크리스트';
@@ -545,7 +564,7 @@ function renderPriorityBlock(card, tabId, component) {
   addButton.title = '우선순위 추가';
   addButton.textContent = '+';
   addButton.addEventListener('click', () => {
-    activeBlockItem = { type: 'priority', tabId, blockId: component.id };
+    activeBlockItem = { type: 'priority', tabId, blockId: component.id, date: component.recordDate };
     document.getElementById('blockItemInput').value = '';
     document.querySelector('#blockItemModal h3').textContent = '우선순위 추가';
     document.getElementById('blockItemInput').placeholder = '우선순위 항목을 입력하세요';
@@ -560,7 +579,7 @@ function renderPriorityBlock(card, tabId, component) {
   removeButton.textContent = '×';
   removeButton.addEventListener('click', () => removeComponent(tabId, component.id));
 
-  actions.append(addButton, removeButton);
+  actions.append(makeChecklistImportButton({ tabId, blockId: component.id }, renderCustomTabs), addButton, removeButton);
   header.append(title, makeComponentDragHandle(), actions);
   card.appendChild(header);
 
@@ -586,7 +605,7 @@ function renderPriorityBlock(card, tabId, component) {
       getPriorityDetails(priorities[idx]).forEach((detail) => {
         detail.done = nextDone;
       });
-      updateTab(tabId, (tab) => {
+      updateChecklist(tabId, component, (tab) => {
         const target = tab.components.find((componentItem) => componentItem.id === component.id);
         target.priorities = priorities;
       });
@@ -599,7 +618,7 @@ function renderPriorityBlock(card, tabId, component) {
     text.addEventListener('click', () => {
       startTextEdit(text, item.text, (nextText) => {
         priorities[idx].text = nextText;
-        updateTab(tabId, (tab) => {
+        updateChecklist(tabId, component, (tab) => {
           const target = tab.components.find((componentItem) => componentItem.id === component.id);
           target.priorities = priorities;
         });
@@ -610,7 +629,7 @@ function renderPriorityBlock(card, tabId, component) {
     const details = document.createElement('div');
     details.className = 'priority-detail-wrap';
     appendPriorityDetails(details, item, () => {
-      updateTab(tabId, (tab) => {
+      updateChecklist(tabId, component, (tab) => {
         const target = tab.components.find((componentItem) => componentItem.id === component.id);
         target.priorities = priorities;
       });
@@ -619,7 +638,7 @@ function renderPriorityBlock(card, tabId, component) {
     const detailList = details.querySelector('.priority-detail-list');
     addDetail.addEventListener('click', () => {
       startPriorityDetailAdd(detailList, item, () => {
-        updateTab(tabId, (tab) => {
+        updateChecklist(tabId, component, (tab) => {
           const target = tab.components.find((componentItem) => componentItem.id === component.id);
           target.priorities = priorities;
         });
@@ -633,7 +652,7 @@ function renderPriorityBlock(card, tabId, component) {
         const [moved] = priorities.splice(idx, 1);
         priorities.splice(idx - 1, 0, moved);
         normalizeBlockPriorities(component);
-        updateTab(tabId, (tab) => {
+        updateChecklist(tabId, component, (tab) => {
           const target = tab.components.find((componentItem) => componentItem.id === component.id);
           target.priorities = priorities;
         });
@@ -642,7 +661,7 @@ function renderPriorityBlock(card, tabId, component) {
         const [moved] = priorities.splice(idx, 1);
         priorities.splice(idx + 1, 0, moved);
         normalizeBlockPriorities(component);
-        updateTab(tabId, (tab) => {
+        updateChecklist(tabId, component, (tab) => {
           const target = tab.components.find((componentItem) => componentItem.id === component.id);
           target.priorities = priorities;
         });
@@ -1466,7 +1485,13 @@ function renderCustomPanel(root, tab) {
     return;
   }
 
-  tab.components.forEach((component, idx) => {
+  tab.components.forEach((definition, idx) => {
+    const component = { ...definition };
+    if (component.type === 'checklist' || component.type === 'priority') {
+      component.recordDate = todayKey();
+      const items = getChecklistByDate(component.recordDate, { tabId: tab.id, blockId: component.id });
+      component[component.type === 'priority' ? 'priorities' : 'items'] = items;
+    }
     const card = document.createElement('div');
     card.className = 'card custom-component-card';
     card.dataset.componentId = component.id;
@@ -1529,20 +1554,24 @@ export function initCustomTabs() {
     const text = input.value.trim();
     if (!text || !activeBlockItem) return;
 
-    updateTab(activeBlockItem.tabId, (tab) => {
-      const block = tab.components.find((target) => target.id === activeBlockItem.blockId);
-      if (!block) return;
+    if (activeBlockItem.type === 'priority' || activeBlockItem.type === 'checklist') {
+      const component = getTab(activeBlockItem.tabId)?.components?.find((item) => item.id === activeBlockItem.blockId);
+      if (!component) return;
+      const date = activeBlockItem.date;
+      const source = { tabId: activeBlockItem.tabId, blockId: activeBlockItem.blockId };
+      const items = getChecklistByDate(date, source);
+      const item = { id: crypto.randomUUID(), text, done: false };
       if (activeBlockItem.type === 'priority') {
-        if (!Array.isArray(block.priorities)) block.priorities = [];
-        block.priorities.push({
-          text,
-          done: false,
-          priority: block.priorities.length + 1,
-          subPriorities: []
-        });
-        return;
+        item.priority = items.length + 1;
+        item.subPriorities = [];
       }
-      if (activeBlockItem.type === 'recordable') {
+      items.push(item);
+      saveChecklistByDate(date, source, items);
+      renderCustomTabs();
+    } else {
+      updateTab(activeBlockItem.tabId, (tab) => {
+        const block = tab.components.find((target) => target.id === activeBlockItem.blockId);
+        if (!block) return;
         if (!Array.isArray(block.records)) block.records = [];
         block.records.push({
           text,
@@ -1550,11 +1579,8 @@ export function initCustomTabs() {
           createdAt: new Date().toLocaleDateString('ko-KR'),
           achievedAt: null
         });
-        return;
-      }
-      if (!Array.isArray(block.items)) block.items = [];
-      block.items.push({ text, done: false });
-    });
+      });
+    }
 
     input.value = '';
     lastBlockItemAddedAt = now;

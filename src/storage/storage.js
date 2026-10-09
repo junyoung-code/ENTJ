@@ -1,6 +1,7 @@
 import { todayKey } from '../utils/date.js';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import { importUnfinishedItems, migrateChecklistHistory, normalizeChecklist } from './checklists.js';
 
 const DATA_KEYS = [
   'dailyTasks',
@@ -28,6 +29,7 @@ const EMPTY_DATA = {
 let activeUserId = null;
 let syncTimer = null;
 let syncQueue = Promise.resolve();
+const recordDates = new WeakMap();
 
 function load(key, def) {
   try {
@@ -78,6 +80,7 @@ export async function connectCloudStorage(userId) {
       applySnapshot(EMPTY_DATA);
       await setDoc(userDoc, getSnapshot());
     }
+    migrateStoredChecklists();
   } catch (err) {
     activeUserId = null;
     throw err;
@@ -132,28 +135,91 @@ export function getExerciseRecords() { return load('exerciseRecords', {}); }
 export function saveExerciseRecords(v) { save('exerciseRecords', v); }
 
 export function getTodayRecord() {
-  const records = getRecords();
-  const key = todayKey();
-  if (!records[key]) records[key] = { todos: [], daily: {} };
-  return records[key];
+  return getRecordByDate(todayKey());
 }
 
 export function saveTodayRecord(rec) {
-  const records = getRecords();
-  records[todayKey()] = rec;
-  saveRecords(records);
+  saveRecordByDate(recordDates.get(rec) || todayKey(), rec);
 }
 
 export function getRecordByDate(key) {
   const records = getRecords();
-  if (!records[key]) records[key] = { todos: [], daily: {} };
-  return records[key];
+  const rec = records[key] || { todos: [], daily: {}, customChecklists: [] };
+  rec.todos ||= [];
+  rec.daily ||= {};
+  rec.customChecklists ||= [];
+  normalizeChecklist(rec.todos, `todo:${key}`);
+  recordDates.set(rec, key);
+  return rec;
 }
 
 export function saveRecordByDate(key, rec) {
   const records = getRecords();
+  normalizeChecklist(rec.todos, `todo:${key}`);
+  (rec.customChecklists || []).forEach((checklist) => {
+    normalizeChecklist(checklist.items, `${key}:${checklist.tabId}:${checklist.blockId}`, checklist.type === 'priority');
+  });
   records[key] = rec;
   saveRecords(records);
+}
+
+export function migrateStoredChecklists(date = todayKey()) {
+  const records = getRecords();
+  const tabs = getCustomTabs();
+  const result = migrateChecklistHistory(records, tabs, date);
+  // Persist history first so a retry can recover an interrupted config cleanup.
+  if (result.recordsChanged) saveRecords(records);
+  if (result.tabsChanged) saveCustomTabs(tabs);
+}
+
+function findChecklistComponent(source) {
+  const tab = getCustomTabs().find((item) => item.id === source.tabId);
+  const component = tab?.components?.find((item) => item.id === source.blockId);
+  if (!component || !['checklist', 'priority'].includes(component.type)) return null;
+  return { tab, component };
+}
+
+export function getChecklistByDate(date, source = null) {
+  const rec = getRecordByDate(date);
+  if (!source) return rec.todos;
+  const checklist = rec.customChecklists.find((item) => item.tabId === source.tabId && item.blockId === source.blockId);
+  return checklist?.items || [];
+}
+
+export function saveChecklistByDate(date, source, items) {
+  const rec = getRecordByDate(date);
+  if (!source) {
+    rec.todos = items;
+  } else {
+    const target = findChecklistComponent(source);
+    if (!target) return false;
+    let checklist = rec.customChecklists.find((item) => item.tabId === source.tabId && item.blockId === source.blockId);
+    if (!checklist) {
+      checklist = { ...source, type: target.component.type, items: [] };
+      rec.customChecklists.push(checklist);
+    }
+    checklist.tabTitle = target.tab.label;
+    checklist.title = target.component.title;
+    checklist.items = items;
+  }
+  saveRecordByDate(date, rec);
+  return true;
+}
+
+export function getUnfinishedByDate(date, source = null, targetDate = todayKey()) {
+  const existing = new Set(getChecklistByDate(targetDate, source).map((item) => item.id));
+  return getChecklistByDate(date, source)
+    .filter((item) => !item.done)
+    .map((item) => ({ item, alreadyImported: existing.has(item.id) }));
+}
+
+export function importChecklistByDate(date, targetDate, source = null, selectedIds = null) {
+  if (date >= targetDate || (source && !findChecklistComponent(source))) return 0;
+  const items = getChecklistByDate(targetDate, source);
+  const type = source ? findChecklistComponent(source).component.type : 'priority';
+  const count = importUnfinishedItems(getChecklistByDate(date, source), items, selectedIds, type === 'priority');
+  if (count) saveChecklistByDate(targetDate, source, items);
+  return count;
 }
 
 export function getTodayStudy() {

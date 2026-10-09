@@ -1151,6 +1151,38 @@ main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
 .btn-confirm.green { background: #4f46e5; }
 .btn-confirm:hover { filter: brightness(.93); }
 
+.checklist-import-btn {
+  margin-left: auto; margin-right: 8px; padding: 6px 10px; border: none;
+  border-radius: 8px; background: #eef2ff; color: #4f46e5;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.checklist-import-modal {
+  width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 16px);
+  display: flex; flex-direction: column;
+}
+.checklist-import-destination, .checklist-import-status {
+  margin-bottom: 12px; font-size: 13px; color: #666; line-height: 1.5;
+}
+.checklist-import-modal > label { display: block; font-size: 13px; color: #555; }
+.checklist-import-list { max-height: 45vh; min-height: 0; overflow-y: auto; margin-bottom: 12px; }
+.checklist-import-item { display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px solid #eee; }
+.checklist-import-modal .checklist-import-item input {
+  width: 18px; height: 18px; flex-shrink: 0; padding: 0; margin: 3px 0 0; accent-color: #4f46e5;
+}
+.checklist-import-item > span { min-width: 0; overflow-wrap: anywhere; }
+.checklist-import-item strong { font-size: 14px; }
+.checklist-import-detail { display: block; margin-top: 5px; font-size: 13px; color: #666; }
+.checklist-import-detail.done { text-decoration: line-through; color: #999; }
+.checklist-import-item.already-imported { opacity: .55; }
+.checklist-import-actions { flex-wrap: wrap; }
+.checklist-import-actions button:disabled { opacity: .45; cursor: default; }
+.record-checklist-details { padding-left: 24px; margin: 0 0 12px 12px; border-left: 2px solid #e0e7ff; }
+.record-checklist-group .record-toggle-btn { width: 24px; height: 24px; font-size: 12px; flex-shrink: 0; }
+.record-checklist-group .record-toggle-btn.done { color: #fff; }
+.record-checklist-group .record-text-btn { min-width: 0; overflow-wrap: anywhere; }
+.record-checklist-group .task-edit-input { min-width: 0; width: 100%; }
+.record-section-title .record-text-btn { color: #888; }
+
 @media (max-width: 640px) {
   input,
   textarea,

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "local": "python3 server.py",
+    "test": "node --test src/features/*.test.js src/storage/*.test.js api/*.test.js",
     "build": "vite build",
     "preview": "vite preview"
   },

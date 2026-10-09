@@ -1,5 +1,8 @@
 import { closeModal, initModalForm, startTextEdit } from '../utils/dom.js';
-import { getDailyTasks, getTodayRecord, saveTodayRecord } from '../storage/storage.js';
+import { getDailyTasks, getRecordByDate, getTodayRecord, saveRecordByDate, saveTodayRecord } from '../storage/storage.js';
+import { todayKey } from '../utils/date.js';
+import { setItemDone } from '../storage/checklists.js';
+import { makeChecklistImportButton } from './checklistImport.js';
 
 let renderAll = () => {};
 
@@ -93,9 +96,10 @@ function confirmTodo() {
   const val = input.value.trim();
   if (!val) return;
   input.value = '';
-  const rec = getTodayRecord();
-  rec.todos.push({ text: val, done: false, priority: rec.todos.length + 1 });
-  saveTodayRecord(rec);
+  const date = document.getElementById('todoModal').dataset.recordDate || todayKey();
+  const rec = getRecordByDate(date);
+  rec.todos.push({ id: crypto.randomUUID(), text: val, done: false, priority: rec.todos.length + 1 });
+  saveRecordByDate(date, rec);
   closeModal('todoModal');
   renderAll();
 }
@@ -105,6 +109,9 @@ export function renderTodo() {
   const list = document.getElementById('todoList');
   const empty = document.getElementById('todoEmpty');
   list.innerHTML = '';
+  const header = document.getElementById('addTodoBtn').parentElement;
+  header.querySelector('.checklist-import-btn')?.remove();
+  header.insertBefore(makeChecklistImportButton(null, renderAll), document.getElementById('addTodoBtn'));
 
   if (rec.todos.length === 0) {
     empty.style.display = 'block';
@@ -115,7 +122,7 @@ export function renderTodo() {
         todo.text,
         todo.done,
         () => {
-          rec.todos[idx].done = !rec.todos[idx].done;
+          setItemDone(rec.todos[idx], !rec.todos[idx].done);
           saveTodayRecord(rec);
           renderAll();
         },
@@ -141,6 +148,9 @@ export function renderTodo() {
 
 export function initTodo(onRenderAll) {
   renderAll = onRenderAll;
+  document.getElementById('addTodoBtn').addEventListener('click', () => {
+    document.getElementById('todoModal').dataset.recordDate = todayKey();
+  });
 
   initModalForm({
     modalId: 'todoModal',

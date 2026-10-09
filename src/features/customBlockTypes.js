@@ -21,8 +21,8 @@ export function createCustomComponent(template, id) {
 
   if (template.type === 'timer') {
     component.timer = { subject: '', elapsed: 0, running: false, startedAt: null };
-  } else if (template.type === 'priority') {
-    component.priorities = [];
+  } else if (template.type === 'priority' || template.type === 'checklist') {
+    delete component.items;
   } else if (template.type === 'recordable') {
     component.records = [];
   } else if (template.type === 'image') {

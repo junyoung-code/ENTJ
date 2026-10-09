@@ -61,16 +61,21 @@ function renderAllViews() {
 
 function watchDateChange() {
   let currentDay = todayKey();
-  setInterval(() => {
+  let composing = false;
+  const checkDate = () => {
+    if (composing || !auth.currentUser) return;
     const newDay = todayKey();
     if (newDay !== currentDay) {
       currentDay = newDay;
-      setDateDisplay();
-      renderAll();
-      if (hasTab('study')) renderStudyLog();
-      if (hasTab('exercise')) renderExercise();
+      if (document.activeElement?.matches('.task-edit-input, .block-edit-input')) document.activeElement.blur();
+      renderAllViews();
     }
-  }, 30000);
+  };
+  setInterval(checkDate, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDate(); });
+  window.addEventListener('focus', checkDate);
+  document.addEventListener('compositionstart', () => { composing = true; });
+  document.addEventListener('compositionend', () => { composing = false; checkDate(); });
 }
 
 let appInitialized = false;

@@ -14,6 +14,8 @@ import {
 import { startTextEdit } from '../utils/dom.js';
 import { makeTimePickerTrigger, normalizeDuration } from './exerciseTimePicker.js';
 import { fmtDuration } from './study.js';
+import { checklistRate } from '../storage/checklists.js';
+import { renderChecklistRecord } from './checklistRecord.js';
 
 let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth();
@@ -106,18 +108,7 @@ function applyCalSettings(s) {
 }
 
 function getRate(key) {
-  const records = getRecords();
-  const rec = records[key];
-  if (!rec) return null;
-
-  const todos = rec.todos || [];
-  const dailyTasks = getDailyTasks();
-  const total = todos.length + dailyTasks.length;
-  if (total === 0) return null;
-
-  const done = todos.filter((t) => t.done).length
-    + dailyTasks.filter((t) => rec.daily && rec.daily[t]).length;
-  return { done, total, pct: Math.round((done / total) * 100) };
+  return checklistRate(getRecords()[key], getDailyTasks());
 }
 
 function formatDuration(duration) {
@@ -211,6 +202,7 @@ function getExerciseRecordText(exercise, entry) {
 
 function hasDetailRecord(key) {
   return getRate(key) !== null
+    || (getRecords()[key]?.customChecklists || []).length > 0
     || (getStudySessions()[key] || []).length > 0
     || (getExerciseRecords()[key] || []).length > 0;
 }
@@ -317,7 +309,6 @@ function bindInlineForm(root, inputs, onSubmit, onCancel) {
 function refreshSelectedDay() {
   if (!selectedKey) return;
   renderCalendar();
-  showDayDetail(selectedKey);
 }
 
 function showDayDetail(key) {
@@ -353,11 +344,12 @@ function showDayDetail(key) {
   }
 
   const todos = rec.todos || [];
+  const customChecklists = rec.customChecklists || [];
   const dailyTasks = getDailyTasks();
   const studyList = getStudyByDate(key);
   const exerciseList = getExerciseByDate(key);
 
-  if (todos.length === 0 && dailyTasks.length === 0 && studyList.length === 0 && exerciseList.length === 0) {
+  if (todos.length === 0 && customChecklists.length === 0 && dailyTasks.length === 0 && studyList.length === 0 && exerciseList.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'no-records';
     empty.style.padding = '20px 0';
@@ -389,25 +381,33 @@ function showDayDetail(key) {
   }
 
   if (todos.length > 0) {
-    appendSectionTitle('To Do');
-    todos.forEach((todo, idx) => {
-      const row = makeRecordRow(todo.done);
-      const toggle = makeToggleDot(todo.done, todo.done ? '완료 해제' : '완료', () => {
-        todos[idx].done = !todos[idx].done;
-        saveRecord();
-      });
-      const text = makeEditableText(todo.text, '클릭해서 수정', (nextText) => {
-        todos[idx].text = nextText;
-        saveRecord();
-      });
-      const deleteButton = makeActionButton('×', 'delete-btn', () => {
-        todos.splice(idx, 1);
-        saveRecord();
-      });
-      row.append(toggle, text, deleteButton);
-      panel.appendChild(row);
-    });
+    appendSectionTitle('To Do / Priority');
+    renderChecklistRecord(panel, todos, true, saveRecord);
   }
+
+  customChecklists.forEach((checklist) => {
+    const heading = document.createElement('div');
+    heading.className = 'record-section-title';
+    const tabTitle = makeEditableText(checklist.tabTitle || '사용자 정의 탭', '클릭해서 기록의 탭 제목 수정', (text) => {
+      checklist.tabTitle = text;
+      saveRecord();
+    });
+    const separator = document.createElement('span');
+    separator.textContent = ' / ';
+    const blockTitle = makeEditableText(checklist.title || '체크리스트', '클릭해서 기록의 블록 제목 수정', (text) => {
+      checklist.title = text;
+      saveRecord();
+    });
+    heading.append(tabTitle, separator, blockTitle);
+    panel.appendChild(heading);
+    renderChecklistRecord(panel, checklist.items, checklist.type === 'priority', saveRecord);
+    if (!checklist.items.length) {
+      const empty = document.createElement('p');
+      empty.className = 'no-records';
+      empty.textContent = '체크리스트 항목이 없어요.';
+      panel.appendChild(empty);
+    }
+  });
 
   if (dailyTasks.length > 0) {
     appendSectionTitle('매일 할 목록');
@@ -687,7 +687,6 @@ export function renderCalendar() {
       cell.addEventListener('click', () => {
         selectedKey = key;
         renderCalendar();
-        showDayDetail(key);
       });
     }
 
@@ -695,6 +694,7 @@ export function renderCalendar() {
   }
 
   if (!selectedKey) document.getElementById('dayDetail').style.display = 'none';
+  else showDayDetail(selectedKey);
 }
 
 export function initCalendar() {

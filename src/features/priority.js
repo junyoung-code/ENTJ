@@ -1,5 +1,8 @@
 import { openModal, startTextEdit } from '../utils/dom.js';
 import { getTodayRecord, saveTodayRecord } from '../storage/storage.js';
+import { todayKey } from '../utils/date.js';
+import { syncItemDone } from '../storage/checklists.js';
+import { makeChecklistImportButton } from './checklistImport.js';
 
 let renderAll = () => {};
 
@@ -20,14 +23,7 @@ function getSubPriorities(todo) {
   return todo.subPriorities;
 }
 
-function syncTodoDoneFromSubPriorities(todo) {
-  const details = getSubPriorities(todo);
-  if (details.length === 0) return;
-  todo.done = details.every((detail) => detail.done);
-}
-
-function moveTodo(from, to) {
-  const rec = getTodayRecord();
+function moveTodo(rec, from, to) {
   if (to < 0 || to >= rec.todos.length) return;
 
   const [todo] = rec.todos.splice(from, 1);
@@ -79,7 +75,8 @@ function startSubPriorityAdd(list, todo, onSave) {
     if (save && !text) return;
     finished = true;
     if (save && text) {
-      details.push({ text, done: false });
+      details.push({ id: crypto.randomUUID(), text, done: false });
+      syncItemDone(todo);
       onSave();
     } else {
       row.remove();
@@ -122,7 +119,7 @@ function appendSubPriorities(container, todo, onSave) {
     number.title = '세부 우선순위 완수';
     number.addEventListener('click', () => {
       details[detailIdx].done = !details[detailIdx].done;
-      syncTodoDoneFromSubPriorities(todo);
+      syncItemDone(todo);
       onSave();
     });
 
@@ -140,6 +137,7 @@ function appendSubPriorities(container, todo, onSave) {
     del.textContent = '×';
     del.addEventListener('click', () => {
       details.splice(detailIdx, 1);
+      syncItemDone(todo);
       onSave();
     });
 
@@ -172,6 +170,9 @@ export function renderPriority() {
   const list = document.getElementById('priorityList');
   const empty = document.getElementById('priorityEmpty');
   list.innerHTML = '';
+  const header = document.getElementById('addPriorityTodoBtn').parentElement;
+  header.querySelector('.checklist-import-btn')?.remove();
+  header.insertBefore(makeChecklistImportButton(null, renderAll), document.getElementById('addPriorityTodoBtn'));
   renderPriorityProgress(rec);
 
   if (rec.todos.length === 0) {
@@ -205,8 +206,8 @@ export function renderPriority() {
     const controls = document.createElement('div');
     controls.className = 'priority-controls';
     controls.append(
-      makeMoveButton('↑', '우선순위 올리기', idx === 0, () => moveTodo(idx, idx - 1)),
-      makeMoveButton('↓', '우선순위 내리기', idx === rec.todos.length - 1, () => moveTodo(idx, idx + 1))
+      makeMoveButton('↑', '우선순위 올리기', idx === 0, () => moveTodo(rec, idx, idx - 1)),
+      makeMoveButton('↓', '우선순위 내리기', idx === rec.todos.length - 1, () => moveTodo(rec, idx, idx + 1))
     );
 
     const del = document.createElement('button');
@@ -255,6 +256,7 @@ export function initPriority(onRenderAll) {
   renderAll = onRenderAll;
 
   document.getElementById('addPriorityTodoBtn').addEventListener('click', () => {
+    document.getElementById('todoModal').dataset.recordDate = todayKey();
     document.getElementById('todoInput').value = '';
     openModal('todoModal', 'todoInput');
   });

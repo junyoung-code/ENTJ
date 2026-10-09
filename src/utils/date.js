@@ -5,6 +5,12 @@ export function todayKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+export function previousDateKey(key = todayKey()) {
+  const [year, month, day] = key.split('-').map(Number);
+  const date = new Date(year, month - 1, day - 1, 12);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 export function formatDateLabel(key) {
   const [y, m, d] = key.split('-').map(Number);
   const date = new Date(y, m - 1, d);
@@ -17,4 +23,3 @@ export function setDateDisplay() {
   document.getElementById('dateDisplay').innerHTML =
     `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 <span>${day}요일</span>`;
 }
-

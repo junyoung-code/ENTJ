@@ -192,7 +192,7 @@ export function initTabSettings(defaultTabs, onTabsChanged) {
       remove.textContent = hidden ? '복구' : '삭제';
       remove.addEventListener('click', async () => {
         if (customTab) {
-          if (!confirm(`'${label}' 탭과 저장된 모든 블록 기록을 삭제할까요?`)) return;
+          if (!confirm(`'${label}' 탭을 삭제할까요? 날짜별 체크리스트 기록은 유지되며, 사진·일기 등 나머지 블록 데이터는 삭제됩니다.`)) return;
           remove.disabled = true;
           remove.textContent = '삭제 중';
           try {
