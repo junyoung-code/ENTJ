@@ -34,16 +34,11 @@ export function importUnfinishedItems(source, target, selectedIds = null, ranked
   return count;
 }
 
-export function checklistRate(rec, dailyTasks) {
-  if (!rec) return null;
-  const items = [
-    ...(rec.todos || []),
-    ...(rec.customChecklists || []).flatMap((checklist) => checklist.items)
-  ];
-  const total = items.length + dailyTasks.length;
+export function checklistRate(rec) {
+  const items = rec?.todos || [];
+  const total = items.length;
   if (!total) return null;
-  const done = items.filter((item) => item.done).length
-    + dailyTasks.filter((task) => rec.daily?.[task]).length;
+  const done = items.filter((item) => item.done).length;
   return { done, total, pct: Math.round((done / total) * 100) };
 }
 

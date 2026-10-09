@@ -99,13 +99,18 @@ test('migration merges into existing today and recovers an interrupted configura
   assert.equal(records['2026-10-10'], undefined);
 });
 
-test('calendar counts custom parents once and keeps archived block records', () => {
-  const rec = { todos: [{ done: true, subPriorities: [{ done: true }] }], daily: {}, customChecklists: [
-    { items: [{ done: false, subPriorities: [{ done: true }, { done: false }] }, { done: true }] }
+test('calendar counts only basic To Do/Priority parents and leaves other records intact', () => {
+  const rec = { todos: [
+    { done: true, subPriorities: [{ done: true }] },
+    { done: false, subPriorities: [{ done: true }, { done: false }] }
+  ], daily: { 반복: true }, customChecklists: [
+    { items: [{ done: true }, { done: true }] }
   ] };
-  assert.deepEqual(checklistRate(rec, []), { done: 2, total: 3, pct: 67 });
-  assert.deepEqual(checklistRate({ todos: [], customChecklists: [{ items: [{ done: false }] }] }, []), { done: 0, total: 1, pct: 0 });
-  assert.equal(checklistRate({ todos: [], customChecklists: [] }, []), null);
+  const before = structuredClone(rec);
+  assert.deepEqual(checklistRate(rec), { done: 1, total: 2, pct: 50 });
+  assert.deepEqual(rec, before);
+  assert.equal(checklistRate({ todos: [], daily: { 반복: true }, customChecklists: [{ items: [{ done: true }] }] }), null);
+  assert.equal(checklistRate(undefined), null);
 });
 
 test('previous dates use local calendar arithmetic across month, year and leap day boundaries', () => {

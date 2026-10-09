@@ -1,19 +1,5 @@
 import { formatDateLabel, todayKey } from '../utils/date.js';
-import {
-  getDailyTasks,
-  getExerciseByDate,
-  getExerciseRecords,
-  getRecordByDate,
-  getRecords,
-  getStudyByDate,
-  getStudySessions,
-  saveExerciseByDate,
-  saveRecordByDate,
-  saveStudyByDate
-} from '../storage/storage.js';
-import { startTextEdit } from '../utils/dom.js';
-import { makeTimePickerTrigger, normalizeDuration } from './exerciseTimePicker.js';
-import { fmtDuration } from './study.js';
+import { getRecordByDate, getRecords, saveRecordByDate } from '../storage/storage.js';
 import { checklistRate } from '../storage/checklists.js';
 import { renderChecklistRecord } from './checklistRecord.js';
 
@@ -108,207 +94,7 @@ function applyCalSettings(s) {
 }
 
 function getRate(key) {
-  return checklistRate(getRecords()[key], getDailyTasks());
-}
-
-function formatDuration(duration) {
-  const { hours, minutes, seconds } = normalizeDuration(duration);
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
-function formatStudySeconds(totalSec) {
-  const hours = Math.floor(totalSec / 3600);
-  const minutes = Math.floor((totalSec % 3600) / 60);
-  const seconds = totalSec % 60;
-  return formatDuration({ hours, minutes, seconds });
-}
-
-function parseDurationText(value) {
-  const match = value.trim().match(/^(\d{1,2}):(\d{1,2}):(\d{1,2})$/);
-  if (!match) return null;
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  const seconds = Number(match[3]);
-  if (minutes > 59 || seconds > 59) return null;
-  return { hours, minutes, seconds };
-}
-
-function normalizeNumberUnit(value, unit) {
-  const trimmed = value.trim();
-  if (!trimmed) return '';
-  return /^\d+(\.\d+)?$/.test(trimmed) ? `${trimmed}${unit}` : trimmed;
-}
-
-function sanitizeText(value) {
-  return value.trim();
-}
-
-function getExerciseRecordsList(exercise) {
-  if (Array.isArray(exercise.records)) return exercise.records;
-  if (Array.isArray(exercise.sets)) {
-    exercise.records = exercise.sets.map((set) => ({
-      id: set.id || `legacy-set-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      weight: set.weight || '',
-      count: set.count || set.reps || '',
-      reps: set.repeat || '',
-      done: !!set.done
-    }));
-    delete exercise.sets;
-    return exercise.records;
-  }
-
-  const count = exercise.count || exercise.reps || '';
-  exercise.records = exercise.weight || count || exercise.repeat
-    ? [{
-        id: `legacy-set-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        weight: exercise.weight || '',
-        count,
-        reps: exercise.repeat || '',
-        done: !!exercise.done
-      }]
-    : [];
-  delete exercise.weight;
-  delete exercise.count;
-  delete exercise.reps;
-  delete exercise.repeat;
-  return exercise.records;
-}
-
-function syncExerciseDoneFromRecords(exercise) {
-  const entries = getExerciseRecordsList(exercise);
-  exercise.done = entries.length > 0 && entries.every((entry) => entry.done);
-}
-
-function getExerciseRecordText(exercise, entry) {
-  if (exercise.type === 'running' || exercise.type === 'cycling') {
-    const parts = [];
-    if (entry.distanceKm) parts.push(`거리: ${entry.distanceKm}`);
-    parts.push(`시간: ${formatDuration(entry.duration)}`);
-    if (entry.paceKmh) parts.push(`페이스: ${entry.paceKmh}`);
-    return parts.join(' · ');
-  }
-
-  if (exercise.type === 'custom') {
-    if (entry.mode === 'three_blank') return (entry.values || []).filter(Boolean).join(' · ');
-    return entry.text || '';
-  }
-
-  const parts = [];
-  if (entry.weight) parts.push(`무게: ${entry.weight}`);
-  if (entry.count) parts.push(`횟수: ${entry.count}`);
-  if (entry.reps) parts.push(`반복수: ${entry.reps}`);
-  return parts.join(' · ');
-}
-
-function hasDetailRecord(key) {
-  return getRate(key) !== null
-    || (getRecords()[key]?.customChecklists || []).length > 0
-    || (getStudySessions()[key] || []).length > 0
-    || (getExerciseRecords()[key] || []).length > 0;
-}
-
-function makeActionButton(label, className, onClick) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = className;
-  button.textContent = label;
-  button.addEventListener('click', onClick);
-  return button;
-}
-
-function makeRecordRow(done = false) {
-  const row = document.createElement('div');
-  row.className = 'record-item' + (done ? ' done-item' : '');
-  return row;
-}
-
-function makeToggleDot(done, title, onClick) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = `record-toggle-btn ${done ? 'done' : 'undone'}`;
-  button.title = title;
-  button.addEventListener('click', onClick);
-  return button;
-}
-
-function makeEditableText(text, title, onSave, maxLength = 80) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'record-text-btn';
-  button.textContent = text;
-  button.title = title;
-  button.addEventListener('click', () => {
-    const label = document.createElement('span');
-    label.className = 'record-text-inline';
-    label.textContent = text;
-    button.replaceWith(label);
-    startTextEdit(label, text, onSave, maxLength);
-  });
-  return button;
-}
-
-function createInlineTextInput(value, placeholder = '', maxLength = 30) {
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'task-edit-input record-inline-input';
-  input.value = value;
-  input.placeholder = placeholder;
-  input.maxLength = maxLength;
-  return input;
-}
-
-function bindInlineForm(root, inputs, onSubmit, onCancel) {
-  let finished = false;
-  let outsideListenerAttached = false;
-  const removeOutsideListener = () => {
-    if (!outsideListenerAttached) return;
-    document.removeEventListener('pointerdown', handlePointerDownOutside, true);
-    outsideListenerAttached = false;
-  };
-  const finalize = (handler) => {
-    if (finished) return;
-    finished = true;
-    removeOutsideListener();
-    handler();
-  };
-  const handlePointerDownOutside = (event) => {
-    if (root.contains(event.target)) return;
-    if (event.target.closest('#exerciseTimeModal.open')) return;
-    finalize(onCancel);
-  };
-
-  inputs.forEach((input) => {
-    input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        finalize(onSubmit);
-      }
-      if (event.key === 'Escape') finalize(onCancel);
-    });
-  });
-
-  root.addEventListener('click', (event) => {
-    event.stopPropagation();
-  });
-  setTimeout(() => {
-    if (finished) return;
-    outsideListenerAttached = true;
-    document.addEventListener('pointerdown', handlePointerDownOutside, true);
-  }, 0);
-
-  return {
-    submit() {
-      finalize(onSubmit);
-    },
-    cancel() {
-      finalize(onCancel);
-    }
-  };
-}
-
-function refreshSelectedDay() {
-  if (!selectedKey) return;
-  renderCalendar();
+  return checklistRate(getRecords()[key]);
 }
 
 function showDayDetail(key) {
@@ -344,285 +130,23 @@ function showDayDetail(key) {
   }
 
   const todos = rec.todos || [];
-  const customChecklists = rec.customChecklists || [];
-  const dailyTasks = getDailyTasks();
-  const studyList = getStudyByDate(key);
-  const exerciseList = getExerciseByDate(key);
-
-  if (todos.length === 0 && customChecklists.length === 0 && dailyTasks.length === 0 && studyList.length === 0 && exerciseList.length === 0) {
+  if (todos.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'no-records';
     empty.style.padding = '20px 0';
-    empty.textContent = '이 날의 기록이 없어요';
+    empty.textContent = '이 날의 To Do / Priority 기록이 없어요';
     panel.appendChild(empty);
     return;
   }
 
-  function appendSectionTitle(title) {
-    const el = document.createElement('div');
-    el.className = 'record-section-title';
-    el.textContent = title;
-    panel.appendChild(el);
-  }
-
-  function saveRecord() {
+  const title = document.createElement('div');
+  title.className = 'record-section-title';
+  title.textContent = 'To Do / Priority';
+  panel.appendChild(title);
+  renderChecklistRecord(panel, todos, true, () => {
     saveRecordByDate(key, rec);
-    refreshSelectedDay();
-  }
-
-  function saveStudy() {
-    saveStudyByDate(key, studyList);
-    refreshSelectedDay();
-  }
-
-  function saveExercise() {
-    saveExerciseByDate(key, exerciseList);
-    refreshSelectedDay();
-  }
-
-  if (todos.length > 0) {
-    appendSectionTitle('To Do / Priority');
-    renderChecklistRecord(panel, todos, true, saveRecord);
-  }
-
-  customChecklists.forEach((checklist) => {
-    const heading = document.createElement('div');
-    heading.className = 'record-section-title';
-    const tabTitle = makeEditableText(checklist.tabTitle || '사용자 정의 탭', '클릭해서 기록의 탭 제목 수정', (text) => {
-      checklist.tabTitle = text;
-      saveRecord();
-    });
-    const separator = document.createElement('span');
-    separator.textContent = ' / ';
-    const blockTitle = makeEditableText(checklist.title || '체크리스트', '클릭해서 기록의 블록 제목 수정', (text) => {
-      checklist.title = text;
-      saveRecord();
-    });
-    heading.append(tabTitle, separator, blockTitle);
-    panel.appendChild(heading);
-    renderChecklistRecord(panel, checklist.items, checklist.type === 'priority', saveRecord);
-    if (!checklist.items.length) {
-      const empty = document.createElement('p');
-      empty.className = 'no-records';
-      empty.textContent = '체크리스트 항목이 없어요.';
-      panel.appendChild(empty);
-    }
+    renderCalendar();
   });
-
-  if (dailyTasks.length > 0) {
-    appendSectionTitle('매일 할 목록');
-    dailyTasks.forEach((task) => {
-      const done = !!rec.daily?.[task];
-      const row = makeRecordRow(done);
-      const toggle = makeToggleDot(done, done ? '완료 해제' : '완료', () => {
-        rec.daily[task] = !done;
-        saveRecord();
-      });
-      const text = document.createElement('span');
-      text.className = 'record-text-inline';
-      text.textContent = task;
-      const resetButton = makeActionButton('초기화', 'record-action-btn', () => {
-        delete rec.daily[task];
-        saveRecord();
-      });
-      row.append(toggle, text, resetButton);
-      panel.appendChild(row);
-    });
-  }
-
-  if (exerciseList.length > 0) {
-    appendSectionTitle('운동 기록');
-
-    exerciseList.forEach((exercise, exerciseIdx) => {
-      const row = makeRecordRow(exercise.done);
-      const toggle = makeToggleDot(exercise.done, exercise.done ? '완료 해제' : '완료', () => {
-        const nextDone = !exercise.done;
-        exercise.done = nextDone;
-        getExerciseRecordsList(exercise).forEach((entry) => {
-          entry.done = nextDone;
-        });
-        saveExercise();
-      });
-      const name = makeEditableText(exercise.name, '운동 이름 수정', (nextText) => {
-        exercise.name = nextText;
-        saveExercise();
-      }, 50);
-      const deleteButton = makeActionButton('×', 'delete-btn', () => {
-        exerciseList.splice(exerciseIdx, 1);
-        saveExercise();
-      });
-      row.append(toggle, name, deleteButton);
-      panel.appendChild(row);
-
-      const records = getExerciseRecordsList(exercise);
-      if (records.length === 0) return;
-
-      const detailWrap = document.createElement('div');
-      detailWrap.className = 'record-exercise-set-list';
-
-      records.forEach((entry, entryIdx) => {
-        const setRow = document.createElement('div');
-        setRow.className = 'record-exercise-set' + (entry.done ? ' done-item' : '');
-
-        const number = makeActionButton(String(entryIdx + 1), 'record-exercise-set-number record-index-btn', () => {
-          records[entryIdx].done = !records[entryIdx].done;
-          syncExerciseDoneFromRecords(exercise);
-          saveExercise();
-        });
-
-        const text = document.createElement('button');
-        text.type = 'button';
-        text.className = 'record-text-btn';
-        text.textContent = getExerciseRecordText(exercise, entry);
-        text.title = '클릭해서 수정';
-        text.addEventListener('click', () => {
-          const editRow = document.createElement('div');
-          editRow.className = 'exercise-set-edit-row';
-
-          const cancel = () => {
-            editRow.replaceWith(setRow);
-          };
-
-          let inputs;
-          let submit;
-
-          if (exercise.type === 'running' || exercise.type === 'cycling') {
-            const distanceInput = createInlineTextInput(entry.distanceKm || '', '거리', 20);
-            const durationInput = createInlineTextInput(formatDuration(entry.duration), 'HH:MM:SS', 8);
-            const paceInput = createInlineTextInput(entry.paceKmh || '', '페이스', 20);
-            inputs = [distanceInput, durationInput, paceInput];
-            submit = () => {
-              const nextDuration = parseDurationText(durationInput.value);
-              if (!nextDuration) {
-                durationInput.focus();
-                return;
-              }
-              entry.distanceKm = normalizeNumberUnit(distanceInput.value, 'km');
-              entry.duration = nextDuration;
-              entry.paceKmh = normalizeNumberUnit(paceInput.value, 'km/h');
-              saveExercise();
-            };
-            editRow.append(
-              distanceInput,
-              durationInput,
-              paceInput
-            );
-          } else if (exercise.type === 'custom') {
-            if (entry.mode === 'three_blank') {
-              const values = Array.isArray(entry.values) ? entry.values : ['', '', ''];
-              inputs = values.map((value) => createInlineTextInput(value || '', '', 40));
-              submit = () => {
-                entry.values = inputs.map((input) => sanitizeText(input.value));
-                saveExercise();
-              };
-              editRow.append(...inputs);
-            } else {
-              const textInput = createInlineTextInput(entry.text || '', '세부 기록 입력', 80);
-              inputs = [textInput];
-              submit = () => {
-                const nextText = sanitizeText(textInput.value);
-                if (!nextText) {
-                  textInput.focus();
-                  return;
-                }
-                entry.text = nextText;
-                saveExercise();
-              };
-              editRow.append(textInput);
-            }
-          } else {
-            const weightInput = createInlineTextInput(entry.weight || '', '무게', 20);
-            const countInput = createInlineTextInput(entry.count || '', '횟수', 20);
-            const repsInput = createInlineTextInput(entry.reps || '', '반복수', 20);
-            inputs = [weightInput, countInput, repsInput];
-            submit = () => {
-              entry.weight = normalizeNumberUnit(weightInput.value, 'kg');
-              entry.count = normalizeNumberUnit(countInput.value, '회');
-              entry.reps = normalizeNumberUnit(repsInput.value, '회');
-              saveExercise();
-            };
-            editRow.append(weightInput, countInput, repsInput);
-          }
-
-          const saveButton = makeActionButton('저장', 'record-action-btn', submit);
-          const cancelButton = makeActionButton('취소', 'record-action-btn', cancel);
-          editRow.append(saveButton, cancelButton);
-          bindInlineForm(editRow, inputs, submit, cancel);
-          setRow.replaceWith(editRow);
-          inputs[0].focus();
-          inputs[0].select?.();
-        });
-
-        const deleteEntryButton = makeActionButton('×', 'delete-btn exercise-set-delete', () => {
-          records.splice(entryIdx, 1);
-          syncExerciseDoneFromRecords(exercise);
-          saveExercise();
-        });
-
-        setRow.append(number, text, deleteEntryButton);
-        detailWrap.appendChild(setRow);
-      });
-
-      panel.appendChild(detailWrap);
-    });
-  }
-
-  if (studyList.length > 0) {
-    appendSectionTitle('공부 기록');
-
-    const totalSec = studyList.reduce((sum, item) => sum + item.seconds, 0);
-    const totalEl = document.createElement('div');
-    totalEl.className = 'record-study-total';
-    totalEl.textContent = `총 ${fmtDuration(totalSec)}`;
-    panel.appendChild(totalEl);
-
-    studyList.forEach((study, idx) => {
-      const row = document.createElement('div');
-      row.className = 'study-record-item';
-
-      const dot = document.createElement('span');
-      dot.className = 'study-record-dot';
-
-      const subject = makeEditableText(study.subject || '(과목 없음)', '과목 수정', (nextText) => {
-        studyList[idx].subject = nextText;
-        saveStudy();
-      });
-
-      const duration = makeActionButton(formatStudySeconds(study.seconds), 'study-record-dur study-record-dur-btn', () => {
-        const editWrap = document.createElement('div');
-        editWrap.className = 'exercise-set-edit-row study-record-time-edit';
-
-        const currentDuration = normalizeDuration({
-          hours: Math.floor(study.seconds / 3600),
-          minutes: Math.floor((study.seconds % 3600) / 60),
-          seconds: study.seconds % 60
-        });
-        const timePicker = makeTimePickerTrigger(currentDuration);
-        let controller;
-        const saveButton = makeActionButton('저장', 'exercise-set-save-btn', () => controller.submit());
-        const cancelButton = makeActionButton('×', 'delete-btn exercise-set-delete', () => controller.cancel());
-
-        editWrap.append(timePicker.element, saveButton, cancelButton);
-        controller = bindInlineForm(editWrap, [], () => {
-          const nextDuration = timePicker.getValue();
-          studyList[idx].seconds = (nextDuration.hours * 3600) + (nextDuration.minutes * 60);
-          saveStudy();
-        }, () => {
-          editWrap.replaceWith(duration);
-        });
-        duration.replaceWith(editWrap);
-        timePicker.focus();
-      });
-
-      const deleteButton = makeActionButton('×', 'delete-btn', () => {
-        studyList.splice(idx, 1);
-        saveStudy();
-      });
-
-      row.append(dot, subject, duration, deleteButton);
-      panel.appendChild(row);
-    });
-  }
 }
 
 export function renderCalendar() {
@@ -652,19 +176,17 @@ export function renderCalendar() {
   for (let d = 1; d <= daysInMonth; d++) {
     const key = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const rate = getRate(key);
-    const hasDetail = hasDetailRecord(key);
     const isToday = key === tk;
     const isSelected = key === selectedKey;
 
     const cell = document.createElement('div');
     cell.className = 'cal-day';
 
-    if (rate === null && !hasDetail) {
+    if (rate === null) {
       cell.classList.add('no-record');
     } else {
       cell.classList.add('has-record');
-      if (rate === null) cell.classList.add('no-record');
-      else if (rate.pct === 0) cell.classList.add('rate-0');
+      if (rate.pct === 0) cell.classList.add('rate-0');
       else if (rate.pct < midThreshold) cell.classList.add('rate-low');
       else if (rate.pct < 100) cell.classList.add('rate-mid');
       else cell.classList.add('rate-100');
@@ -683,7 +205,7 @@ export function renderCalendar() {
       cell.appendChild(pctEl);
     }
 
-    if (hasDetail) {
+    if (rate !== null) {
       cell.addEventListener('click', () => {
         selectedKey = key;
         renderCalendar();
